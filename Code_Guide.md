@@ -104,6 +104,10 @@ Keep version-independent code in `common`, including:
 
 Common code must not import Minecraft, Fabric, Mixin, Mod Menu, or mapping-specific classes.
 
+Each Fabric module adds `common/src/main/resources` to its own `main` resource source set. This makes shared assets—including `assets/fbx-player-models/textures/white_pixel.png`—part of the active Fabric mod resource pack in both development runs and production jars. The jar task imports only the common compiled-class directories, preventing those resources from being packaged twice.
+
+Untextured or texture-missing FBX materials use `fbx-player-models:textures/white_pixel.png`, tinted by the material's diffuse/base color. Keep this fallback in the shared assets and keep the common resource source-set wiring in every Fabric target; otherwise Minecraft renders those faces with its magenta-and-black missing-texture pattern during development.
+
 ## Version-specific client code
 
 Keep Minecraft- and Fabric-sensitive code in both Fabric target modules, including:

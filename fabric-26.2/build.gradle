@@ -26,6 +26,12 @@ loom {
 	splitEnvironmentSourceSets()
 }
 
+sourceSets {
+	main {
+		resources.srcDir(project(":common").file("src/main/resources"))
+	}
+}
+
 dependencies {
 	minecraft "com.mojang:minecraft:${project.fabric_262_minecraft_version}"
 	implementation "net.fabricmc:fabric-loader:${project.fabric_262_loader_version}"
@@ -98,7 +104,7 @@ jar {
 	dependsOn(":common:classes")
 	inputs.property "archivesName", project.base.archivesName
 
-	from(project(":common").sourceSets.main.output)
+	from(project(":common").sourceSets.main.output.classesDirs)
 
 	from(rootProject.file("LICENSE")) {
 		rename { "${it}_${inputs.properties.archivesName}"}
