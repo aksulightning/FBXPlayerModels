@@ -2,7 +2,7 @@ package me.onethecrazy.util.objects.save;
 
 public class FBXPlayerModelsSave {
     public ClientSkin selectedSkin;
-    public boolean isEnabled;
+    private boolean isEnabled;
     public boolean renderSelfModelInFirstPerson;
     public float firstPersonCameraOffsetX;
     public float firstPersonCameraOffsetY;
@@ -17,5 +17,13 @@ public class FBXPlayerModelsSave {
         this.firstPersonCameraOffsetY = 0f;
         this.firstPersonCameraOffsetZ = 0f;
         this.hideCommunityServerDisclaimer = false;
+    }
+
+    public boolean areFbxPlayerModelsEnabled() {
+        return isEnabled;
+    }
+
+    public void setFbxPlayerModelsEnabled(boolean enabled) {
+        isEnabled = enabled;
     }
 }

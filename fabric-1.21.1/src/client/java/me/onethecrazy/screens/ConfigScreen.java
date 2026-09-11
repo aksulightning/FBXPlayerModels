@@ -4,6 +4,7 @@ import me.onethecrazy.FBXPlayerModelsClient;
 import me.onethecrazy.SkinManager;
 import me.onethecrazy.screens.editor.ModelBindingEditorScreen;
 import me.onethecrazy.screens.rendering.SkinPreviewRenderer;
+import me.onethecrazy.util.FileUtil;
 import me.onethecrazy.util.objects.CacheSkin;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -70,10 +71,12 @@ public class ConfigScreen extends Screen {
                     .dimensions(getContentOriginX(), selectSkinButton.getY() + BUTTON_HEIGHT + BUTTON_SPACING, getHalfButtonWidth(), BUTTON_HEIGHT).build();
 
         toggleButton = ButtonWidget.builder(Text.empty(), (button) -> {
-            FBXPlayerModelsClient.options().isEnabled = !FBXPlayerModelsClient.options().isEnabled;
+            var options = FBXPlayerModelsClient.options();
+            options.setFbxPlayerModelsEnabled(!options.areFbxPlayerModelsEnabled());
+            FileUtil.writeSave(options);
 
             // Update Text
-            updateEnabledButtonText();
+            updateFbxModelsButtonText();
         }).dimensions(getContentOriginX() + getHalfButtonWidth() + BUTTON_SPACING, selectSkinButton.getY() + BUTTON_HEIGHT + BUTTON_SPACING, getHalfButtonWidth(), BUTTON_HEIGHT).build();
 
         uploadAgainButton = ButtonWidget.builder(Text.empty(), (button) ->
@@ -102,7 +105,7 @@ public class ConfigScreen extends Screen {
         updateSelectButtonText();
         updateResetButtonText();
         updateUploadAgainButtonText();
-        updateEnabledButtonText();
+        updateFbxModelsButtonText();
     }
 
     @Override
@@ -263,8 +266,10 @@ public class ConfigScreen extends Screen {
         uploadAgainButton.setMessage(Text.of(trimmed(Text.translatable("gui.fbxplayermodels.upload_again").getString(), uploadAgainButton.getWidth() - 12)));
     }
 
-    @Unique private void updateEnabledButtonText(){
-        Text text = FBXPlayerModelsClient.options().isEnabled ? Text.translatable("gui.fbxplayermodels.mod_enabled") : Text.translatable("gui.fbxplayermodels.mod_disabled");
+    @Unique private void updateFbxModelsButtonText(){
+        Text text = FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()
+                ? Text.translatable("gui.fbxplayermodels.fbx_models_enabled")
+                : Text.translatable("gui.fbxplayermodels.fbx_models_disabled");
 
         toggleButton.setMessage(text);
     }

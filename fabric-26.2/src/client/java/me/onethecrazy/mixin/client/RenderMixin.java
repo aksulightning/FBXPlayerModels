@@ -54,7 +54,8 @@ public abstract class RenderMixin implements LivingEntityRenderExtension {
             return;
         }
 
-        if (!FBXPlayerModelsClient.options().isEnabled) {
+        state.setData(CustomSkinRenderData.KEY, null);
+        if (!FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()) {
             return;
         }
 

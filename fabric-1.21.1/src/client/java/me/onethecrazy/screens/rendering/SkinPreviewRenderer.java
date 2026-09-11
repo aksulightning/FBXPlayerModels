@@ -86,7 +86,7 @@ public class SkinPreviewRenderer {
     }
 
     private boolean renderCachedSelfSkin(DrawContext ctx, MinecraftClient client, float deltaTicks) {
-        if (!FBXPlayerModelsClient.options().isEnabled) {
+        if (!FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()) {
             return false;
         }
 
@@ -157,7 +157,7 @@ public class SkinPreviewRenderer {
 
     private boolean shouldRenderVanillaPlayerFallback() {
         var selectedSkin = FBXPlayerModelsClient.options().selectedSkin;
-        return !FBXPlayerModelsClient.options().isEnabled
+        return !FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()
                 || selectedSkin == null
                 || selectedSkin.hash == null
                 || selectedSkin.hash.isBlank();

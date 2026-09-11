@@ -19,7 +19,7 @@ public abstract class CameraMixin {
     @Inject(method = "update", at = @At("TAIL"))
     private void fbx_player_models$applyFirstPersonCameraOffset(BlockView area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float tickDelta, CallbackInfo ci) {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (!FBXPlayerModelsClient.options().isEnabled
+        if (!FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()
                 || !FBXPlayerModelsClient.options().renderSelfModelInFirstPerson
                 || thirdPerson
                 || !(focusedEntity instanceof ClientPlayerEntity)

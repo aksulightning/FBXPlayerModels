@@ -151,6 +151,12 @@ Code that imports `net.minecraft.*`, `com.mojang.*`, `net.fabricmc.*`, Mixin, or
 
 Shared code currently includes platform interfaces, constants, save/config models, rig binding metadata, simple model structures, `Float2`, `Float3`, and shared resources.
 
+## Player model display setting
+
+The client config screen exposes `FBX Models: ON/OFF`. It is enabled by default and saved immediately when changed. `ON` renders available FBX models for player entities; `OFF` leaves player rendering to Minecraft so vanilla player skins are shown. The setting is client-local and covers both the local player and remote players, so it behaves the same in single-player and multiplayer.
+
+The setting deliberately gates only player rendering, the player preview, and FBX-specific first-person model/camera behavior. It must not gate the summonable FBX view entity or FBX mob renderers.
+
 ## FBX view entity
 
 The mod registers summonable FBX-backed entities for displaying an FBX model:

@@ -100,7 +100,7 @@ public final class FirstPersonSelfModelRenderer {
 
     private static boolean isRenderAllowed(LocalPlayer player) {
         Minecraft minecraft = Minecraft.getInstance();
-        return FBXPlayerModelsClient.options().isEnabled
+        return FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()
                 && FBXPlayerModelsClient.options().renderSelfModelInFirstPerson
                 && minecraft.getCameraEntity() == player
                 && minecraft.options.getCameraType() == CameraType.FIRST_PERSON

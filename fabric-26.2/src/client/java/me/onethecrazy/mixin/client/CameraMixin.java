@@ -22,7 +22,7 @@ public abstract class CameraMixin {
     private void fbx_player_models$applyFirstPersonCameraOffset(DeltaTracker deltaTracker, CallbackInfo ci) {
         Minecraft minecraft = Minecraft.getInstance();
         Entity focusedEntity = entity();
-        if (!FBXPlayerModelsClient.options().isEnabled
+        if (!FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()
                 || !FBXPlayerModelsClient.options().renderSelfModelInFirstPerson
                 || minecraft.options.getCameraType() != CameraType.FIRST_PERSON
                 || !(focusedEntity instanceof LocalPlayer)

@@ -47,7 +47,7 @@ public abstract class RenderMixin <T extends LivingEntity> implements LivingEnti
         if(livingEntity instanceof AbstractClientPlayerEntity renderedPlayer){
             player = renderedPlayer;
 
-            if(!FBXPlayerModelsClient.options().isEnabled)
+            if(!FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled())
                 return;
 
             String uuid;
