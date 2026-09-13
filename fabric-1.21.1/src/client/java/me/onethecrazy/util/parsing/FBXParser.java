@@ -1,6 +1,7 @@
 package me.onethecrazy.util.parsing;
 
 import me.onethecrazy.FBXPlayerModelsMod;
+import com.aksulightning.fbxplayermodels.model.FbxCoordinateSpace;
 import me.onethecrazy.FBXPlayerModels;
 import me.onethecrazy.util.objects.Float2;
 import me.onethecrazy.util.objects.Float3;
@@ -214,24 +215,25 @@ public class FBXParser implements IParser {
         Map<Long, Matrix4f> clusterBinds = new HashMap<>();
         for (BinaryNode cluster : index.nodesOfType("Deformer", "Cluster")) {
             long id = clusterBoneId(index, cluster);
-            matrixProperty(cluster.child("TransformLink")).ifPresent(bind -> clusterBinds.putIfAbsent(id, blenderMatrixToGame(bind)));
+            matrixProperty(cluster.child("TransformLink")).ifPresent(bind -> clusterBinds.putIfAbsent(id, bind));
         }
-        List<SkinnedModel.Bone> bones = new ArrayList<>(ids.size());
+        List<SkinnedModel.Bone> bones = new ArrayList<>(ids.size() + 1);
+        bones.add(new SkinnedModel.Bone(FbxCoordinateSpace.ROOT_NAME, -1, new Matrix4f(index.sceneToModel), new Matrix4f(index.sceneToModel).invert()));
         Map<Long, Integer> indices = new HashMap<>();
         Map<Long, Matrix4f> globals = new HashMap<>();
         for (long id : ids) {
             BinaryNode node = index.nodesById.get(id);
             long parentId = index.parentOf.getOrDefault(id, Long.MIN_VALUE);
-            int parentIndex = indices.getOrDefault(parentId, -1);
+            int parentIndex = indices.getOrDefault(parentId, 0);
             Matrix4f local = modelLocalBind(node);
-            Matrix4f global = parentIndex >= 0 ? new Matrix4f(globals.get(parentId)).mul(local) : new Matrix4f(local);
+            Matrix4f global = parentIndex > 0 ? new Matrix4f(globals.get(parentId)).mul(local) : new Matrix4f(local);
             if (clusterBinds.containsKey(id)) {
                 global = new Matrix4f(clusterBinds.get(id));
-                local = parentIndex >= 0 ? new Matrix4f(globals.get(parentId)).invert().mul(global) : new Matrix4f(global);
+                local = parentIndex > 0 ? new Matrix4f(globals.get(parentId)).invert().mul(global) : new Matrix4f(global);
             }
             indices.put(id, bones.size());
             globals.put(id, global);
-            bones.add(new SkinnedModel.Bone(sanitizeName(node.stringProperty(1)), parentIndex, local, new Matrix4f(global).invert()));
+            bones.add(new SkinnedModel.Bone(sanitizeName(node.stringProperty(1)), parentIndex, local, new Matrix4f(index.sceneToModel).mul(global).invert()));
         }
         return new FallbackSkeleton(bones, indices, globals);
     }
@@ -243,10 +245,10 @@ public class FBXParser implements IParser {
                 Matrix4f geometric = new Matrix4f().translation(propertyVector(node, "GeometricTranslation", new Vector3f()));
                 rotateFbx(geometric, propertyVector(node, "GeometricRotation", new Vector3f()), 0);
                 geometric.scale(propertyVector(node, "GeometricScaling", new Vector3f(1f)));
-                return new Matrix4f(skeleton.globals.get(id)).mul(blenderMatrixToGame(geometric));
+                return new Matrix4f(index.sceneToModel).mul(skeleton.globals.get(id)).mul(geometric);
             }
         }
-        return new Matrix4f();
+        return new Matrix4f(index.sceneToModel);
     }
 
     private static void transformFallbackMesh(List<Vertex> vertices, Matrix4f transform) {
@@ -339,7 +341,7 @@ public class FBXParser implements IParser {
                 .translate(propertyVector(model, "ScalingOffset", new Vector3f())).translate(scalePivot)
                 .scale(propertyVector(model, "Lcl Scaling", new Vector3f(1f)))
                 .translate(-scalePivot.x, -scalePivot.y, -scalePivot.z);
-        return blenderMatrixToGame(local);
+        return local;
     }
 
     private static Matrix4f rotateFbx(Matrix4f matrix, Vector3f degrees, int order) {
@@ -477,7 +479,7 @@ public class FBXParser implements IParser {
         static MeshData from(BinaryNode node, MaterialResolver resolver) {
             long geometryId = node.longProperty(0);
             return new MeshData(
-                    blenderToGame(vec3List(floatListProperty(node.child("Vertices")))),
+                    vec3List(floatListProperty(node.child("Vertices"))),
                     intListProperty(node.child("PolygonVertexIndex")),
                     parseNormals(node),
                     parseUvs(node),
@@ -1290,7 +1292,7 @@ public class FBXParser implements IParser {
         }
 
         return new LayerData<>(
-                blenderToGame(vec3List(floatListProperty(block.child("Normals")))),
+                vec3List(floatListProperty(block.child("Normals"))),
                 intListProperty(block.child("NormalsIndex")),
                 stringProperty(block.child("MappingInformationType"), LayerData.BY_POLYGON_VERTEX),
                 stringProperty(block.child("ReferenceInformationType"), "Direct")
@@ -1480,10 +1482,6 @@ public class FBXParser implements IParser {
         return new Float3(vector.x, vector.z, -vector.y);
     }
 
-    private static Vector3f blenderToGame(Vector3f vector) {
-        return new Vector3f(vector.x, vector.z, -vector.y);
-    }
-
     private static List<Float> floatListProperty(BinaryNode node) {
         if (node == null || node.properties.isEmpty()) {
             return List.of();
@@ -1597,18 +1595,6 @@ public class FBXParser implements IParser {
         result.m32((float) matrix[14]);
         result.m33((float) matrix[15]);
         return Optional.of(result);
-    }
-
-    private static Matrix4f blenderMatrixToGame(Matrix4f matrix) {
-        Matrix4f basis = new Matrix4f(
-                1f, 0f, 0f, 0f,
-                0f, 0f, -1f, 0f,
-                0f, 1f, 0f, 0f,
-                0f, 0f, 0f, 1f
-        );
-
-        Matrix4f inverseBasis = new Matrix4f(basis).invert();
-        return new Matrix4f(basis).mul(matrix).mul(inverseBasis);
     }
 
     private static String sanitizeName(String name) {
@@ -1728,12 +1714,15 @@ public class FBXParser implements IParser {
     }
 
     private static final class SceneIndex {
+        final Matrix4f sceneToModel;
         final Map<Long, BinaryNode> nodesById = new LinkedHashMap<>();
         final Map<Long, List<Long>> objectChildren = new HashMap<>();
         final Map<Long, List<Long>> objectParents = new HashMap<>();
         final Map<Long, Long> parentOf = new HashMap<>();
 
         SceneIndex(BinaryNode root) {
+            BinaryNode settings = root.child("GlobalSettings");
+            sceneToModel = FbxCoordinateSpace.fromUpAxis((int) propertyNumber(settings, "UpAxis", 1), (int) propertyNumber(settings, "UpAxisSign", 1));
             for (BinaryNode node : root.allNodes()) {
                 long id = node.longProperty(0);
                 if (id != Long.MIN_VALUE) {

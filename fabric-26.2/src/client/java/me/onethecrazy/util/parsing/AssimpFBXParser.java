@@ -1,6 +1,7 @@
 package me.onethecrazy.util.parsing;
 
 import me.onethecrazy.FBXPlayerModelsMod;
+import com.aksulightning.fbxplayermodels.model.FbxCoordinateSpace;
 import me.onethecrazy.FBXPlayerModels;
 import me.onethecrazy.util.objects.Float2;
 import me.onethecrazy.util.objects.Float3;
@@ -18,6 +19,7 @@ import org.lwjgl.assimp.*;
 import org.lwjgl.system.MemoryStack;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -55,7 +57,7 @@ public class AssimpFBXParser {
                 return Optional.empty();
             }
 
-            for (MeshInstance instance : meshInstances(scene.mRootNode())) {
+            for (MeshInstance instance : meshInstances(scene.mRootNode(), sceneToModel(scene))) {
                 AIMesh mesh = AIMesh.create(meshes.get(instance.meshIndex));
                 MeshAppearance appearance = materials.appearance(mesh.mMaterialIndex());
                 List<Vertex> meshVertices = staticVertices(mesh, appearance);
@@ -92,7 +94,10 @@ public class AssimpFBXParser {
             Map<String, Integer> boneIndex = new HashMap<>();
             Map<Long, Integer> nodeIndices = new HashMap<>();
             List<SkinnedModel.Bone> bones = new ArrayList<>();
-            buildBoneHierarchy(scene.mRootNode(), -1, new Matrix4f(), boneIndex, nodeIndices, bones);
+            Matrix4f sceneToModel = sceneToModel(scene);
+            // A single wrapper keeps every imported node and animation key in its authored local axes.
+            bones.add(new SkinnedModel.Bone(FbxCoordinateSpace.ROOT_NAME, -1, sceneToModel, new Matrix4f(sceneToModel).invert()));
+            buildBoneHierarchy(scene.mRootNode(), 0, sceneToModel, boneIndex, nodeIndices, bones);
 
             if (bones.isEmpty()) {
                 lastStatus = "assimp: no skeleton nodes";
@@ -100,7 +105,7 @@ public class AssimpFBXParser {
             }
 
             List<SkinnedVertex> out = new ArrayList<>();
-            for (MeshInstance instance : meshInstances(scene.mRootNode())) {
+            for (MeshInstance instance : meshInstances(scene.mRootNode(), sceneToModel(scene))) {
                 AIMesh mesh = AIMesh.create(meshes.get(instance.meshIndex));
                 MeshAppearance appearance = materials.appearance(mesh.mMaterialIndex());
                 List<SkinnedVertex> meshVertices = skinnedVertices(mesh, appearance, boneIndex, nodeIndices);
@@ -266,9 +271,9 @@ public class AssimpFBXParser {
 
     private record MeshInstance(int meshIndex, Matrix4f globalTransform) {}
 
-    private static List<MeshInstance> meshInstances(AINode root) {
+    private static List<MeshInstance> meshInstances(AINode root, Matrix4f sceneToModel) {
         List<MeshInstance> instances = new ArrayList<>();
-        collectMeshInstances(root, new Matrix4f(), instances);
+        collectMeshInstances(root, sceneToModel, instances);
         return instances;
     }
 
@@ -372,7 +377,7 @@ public class AssimpFBXParser {
             AIQuatKey key = values.get(i);
             AIQuaternion value = key.mValue();
             Quaternionf q = new Quaternionf(value.x(), value.y(), value.z(), value.w());
-            Vector3f euler = toGameMatrix(new Matrix4f().rotation(q)).getNormalizedRotation(new Quaternionf()).getEulerAnglesXYZ(new Vector3f());
+            Vector3f euler = q.getEulerAnglesXYZ(new Vector3f());
             keys.add(new SkinnedModel.KeyVec3(
                     (float) (key.mTime() / ticksPerSecond),
                     new Vector3f((float) Math.toDegrees(euler.x), (float) Math.toDegrees(euler.y), (float) Math.toDegrees(euler.z))
@@ -387,13 +392,13 @@ public class AssimpFBXParser {
         for (int i = 0; i < channel.mNumScalingKeys(); i++) {
             AIVectorKey key = values.get(i);
             AIVector3D value = key.mValue();
-            keys.add(new SkinnedModel.KeyVec3((float) (key.mTime() / ticksPerSecond), new Vector3f(value.x(), value.z(), value.y())));
+            keys.add(new SkinnedModel.KeyVec3((float) (key.mTime() / ticksPerSecond), new Vector3f(value.x(), value.y(), value.z())));
         }
         return keys;
     }
 
     private static Float3 convert(AIVector3D vector) {
-        return new Float3(vector.x(), vector.z(), -vector.y());
+        return new Float3(vector.x(), vector.y(), vector.z());
     }
 
     private static Float3 convertNormal(AIVector3D vector) {
@@ -414,18 +419,27 @@ public class AssimpFBXParser {
                 matrix.a4(), matrix.b4(), matrix.c4(), matrix.d4()
         );
 
-        return toGameMatrix(result);
+        return result;
     }
 
-    private static Matrix4f toGameMatrix(Matrix4f result) {
-        Matrix4f basis = new Matrix4f(
-                1f, 0f, 0f, 0f,
-                0f, 0f, -1f, 0f,
-                0f, 1f, 0f, 0f,
-                0f, 0f, 0f, 1f
-        );
+    private static Matrix4f sceneToModel(AIScene scene) {
+        AIMetaData metadata = scene.mMetaData();
+        // UpAxis describes file-world space, after all authored node transforms are composed.
+        return FbxCoordinateSpace.fromUpAxis(metadataInt(metadata, "UpAxis", 1), metadataInt(metadata, "UpAxisSign", 1));
+    }
 
-        return new Matrix4f(basis).mul(result).mul(new Matrix4f(basis).invert());
+    private static int metadataInt(AIMetaData metadata, String key, int fallback) {
+        if (metadata == null) return fallback;
+        AIString.Buffer keys = metadata.mKeys();
+        AIMetaDataEntry.Buffer values = metadata.mValues();
+        if (keys == null || values == null) return fallback;
+        for (int i = 0; i < metadata.mNumProperties(); i++) {
+            AIMetaDataEntry entry = values.get(i);
+            if (key.equals(keys.get(i).dataString()) && entry.mType() == Assimp.AI_INT32) {
+                return entry.mData(Integer.BYTES).order(ByteOrder.nativeOrder()).getInt(0);
+            }
+        }
+        return fallback;
     }
 
     private static String cleanName(String name) {
