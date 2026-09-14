@@ -10,7 +10,7 @@ Low detail.
 One material.
 A texture.
 Clear bone names.
-A file size under 3 MB.
+A file size under 2 MB.
 
 The rig names like Head, Chest, Right Arm, Left Arm, Right Leg, and Left Leg can help the mod guess the right body parts.
 
