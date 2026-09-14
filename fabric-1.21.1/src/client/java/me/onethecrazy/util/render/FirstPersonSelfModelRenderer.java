@@ -96,7 +96,8 @@ public final class FirstPersonSelfModelRenderer {
             float seconds = (player.age + tickDelta) / 20f;
             CustomModelPose.HeadLookRotation headLookRotation = CustomModelPose.computeHeadLookRotation(player, tickDelta);
             CustomModelPose.LimbPose limbPose = CustomModelPose.computeLimbPose(player, tickDelta, animation);
-            vertices = cacheSkin.skinnedModel.renderWithHiddenHead(animation, seconds, headLookRotation, limbPose);
+            vertices = cacheSkin.skinnedModel.renderWithHiddenHead(animation, seconds, headLookRotation, limbPose,
+                    VoiceShapeClient.poseFor(player.getUuidAsString(), cacheSkin.skinnedModel));
         }
 
         return vertices == null || vertices.isEmpty() ? null : vertices;

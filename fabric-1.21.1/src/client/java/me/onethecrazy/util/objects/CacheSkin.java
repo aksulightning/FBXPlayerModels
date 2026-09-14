@@ -35,7 +35,8 @@ public class CacheSkin {
                     + ", weighted=" + skinnedModel.weightedVertexCount() + "/" + skinnedModel.vertices.size()
                     + ", idle=" + skinnedModel.trackCount("Idle")
                     + ", walk=" + skinnedModel.trackCount("Walk")
-                    + ", sneak=" + skinnedModel.trackCount("Sneak");
+                    + ", sneak=" + skinnedModel.trackCount("Sneak")
+                    + ", shape keys=" + skinnedModel.shapeKeys.size();
         }
 
         if (vertices != null && !vertices.isEmpty()) {

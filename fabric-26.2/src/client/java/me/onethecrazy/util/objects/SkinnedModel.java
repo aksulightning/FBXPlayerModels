@@ -1,6 +1,9 @@
 package me.onethecrazy.util.objects;
 
 import me.onethecrazy.FBXPlayerModelsMod;
+import com.aksulightning.fbxplayermodels.model.shape.ShapeKey;
+import com.aksulightning.fbxplayermodels.model.shape.ShapeKeyProfile;
+import com.aksulightning.fbxplayermodels.voice.VoiceShapePose;
 import me.onethecrazy.util.model.animation.CustomModelPose;
 import me.onethecrazy.util.model.rig.LogicalBodyPart;
 import me.onethecrazy.util.model.rig.LogicalRigBinding;
@@ -24,6 +27,12 @@ public class SkinnedModel {
     public final List<Bone> bones;
     public final List<SkinnedVertex> vertices;
     public final Map<String, Animation> animations;
+    public final List<ShapeKey> shapeKeys;
+    private final Map<String, Float> shapeKeyWeights;
+    private final List<SkinnedVertex> shapedVertices;
+    private String cachedVoiceShapeId = "";
+    private float cachedVoiceShapeWeight = Float.NaN;
+    private List<SkinnedVertex> cachedVoiceVertices;
     private final boolean animationsEnabled;
     private final LogicalRigBinding logicalRigBinding;
     private final Matrix4f rootNormalization;
@@ -37,13 +46,16 @@ public class SkinnedModel {
     private final int leftLegBoneIndex;
 
     public SkinnedModel(List<Bone> bones, List<SkinnedVertex> vertices, Map<String, Animation> animations) {
-        this(bones, vertices, animations, LogicalRigBinding.autoBind(bones.stream().map(Bone::name).toList()), true, null);
+        this(bones, vertices, animations, LogicalRigBinding.autoBind(bones.stream().map(Bone::name).toList()), true, null, List.of(), Map.of());
     }
 
-    private SkinnedModel(List<Bone> bones, List<SkinnedVertex> vertices, Map<String, Animation> animations, LogicalRigBinding logicalRigBinding, boolean animationsEnabled, Matrix4f rootNormalization) {
+    private SkinnedModel(List<Bone> bones, List<SkinnedVertex> vertices, Map<String, Animation> animations, LogicalRigBinding logicalRigBinding, boolean animationsEnabled, Matrix4f rootNormalization, List<ShapeKey> shapeKeys, Map<String, Float> shapeKeyWeights) {
         this.bones = bones;
         this.vertices = vertices;
         this.animations = animations;
+        this.shapeKeys = List.copyOf(shapeKeys);
+        this.shapeKeyWeights = shapeKeyWeights;
+        this.shapedVertices = applyShapeKeys(vertices, this.shapeKeys, shapeKeyWeights);
         this.animationsEnabled = animationsEnabled;
         this.rootNormalization = rootNormalization;
         this.logicalRigBinding = logicalRigBinding == null
@@ -62,15 +74,15 @@ public class SkinnedModel {
     }
 
     public SkinnedModel withAnimations(Map<String, Animation> animations) {
-        return new SkinnedModel(bones, vertices, animations, logicalRigBinding, animationsEnabled, rootNormalization);
+        return new SkinnedModel(bones, vertices, animations, logicalRigBinding, animationsEnabled, rootNormalization, shapeKeys, shapeKeyWeights);
     }
 
     public SkinnedModel withLogicalRigBinding(LogicalRigBinding logicalRigBinding) {
-        return new SkinnedModel(bones, vertices, animations, logicalRigBinding, animationsEnabled, rootNormalization);
+        return new SkinnedModel(bones, vertices, animations, logicalRigBinding, animationsEnabled, rootNormalization, shapeKeys, shapeKeyWeights);
     }
 
     public SkinnedModel withAnimationsEnabled(boolean animationsEnabled) {
-        return new SkinnedModel(bones, vertices, animations, logicalRigBinding, animationsEnabled, rootNormalization);
+        return new SkinnedModel(bones, vertices, animations, logicalRigBinding, animationsEnabled, rootNormalization, shapeKeys, shapeKeyWeights);
     }
 
     public boolean isNormalized() {
@@ -78,11 +90,71 @@ public class SkinnedModel {
     }
 
     public SkinnedModel withNormalizedGeometry(List<Bone> normalizedBones, List<SkinnedVertex> normalizedVertices, Matrix4f normalization) {
-        return new SkinnedModel(normalizedBones, normalizedVertices, animations, logicalRigBinding, animationsEnabled, new Matrix4f(normalization));
+        return new SkinnedModel(normalizedBones, normalizedVertices, animations, logicalRigBinding, animationsEnabled, new Matrix4f(normalization),
+                shapeKeys.stream().map(key -> key.normalized(normalization)).toList(), shapeKeyWeights);
     }
 
     public SkinnedModel withVertices(List<SkinnedVertex> replacementVertices) {
-        return new SkinnedModel(bones, replacementVertices, animations, logicalRigBinding, animationsEnabled, rootNormalization);
+        return new SkinnedModel(bones, replacementVertices, animations, logicalRigBinding, animationsEnabled, rootNormalization, shapeKeys, shapeKeyWeights);
+    }
+
+    public SkinnedModel withShapeKeys(List<ShapeKey> shapeKeys) {
+        return new SkinnedModel(bones, vertices, animations, logicalRigBinding, animationsEnabled,
+                rootNormalization, shapeKeys, shapeKeyWeights);
+    }
+
+    public SkinnedModel withShapeKeyProfile(ShapeKeyProfile profile) {
+        Map<String, Float> weights = new java.util.LinkedHashMap<>();
+        for (ShapeKey key : shapeKeys) {
+            float weight = profile.weight(key.id());
+            if (weight > 0f) weights.put(key.id(), weight);
+        }
+        return new SkinnedModel(bones, vertices, animations, logicalRigBinding, animationsEnabled,
+                rootNormalization, shapeKeys, Map.copyOf(weights));
+    }
+
+    private static List<SkinnedVertex> applyShapeKeys(List<SkinnedVertex> base, List<ShapeKey> keys, Map<String, Float> weights) {
+        if (keys.isEmpty() || weights.isEmpty()) return base;
+        List<SkinnedVertex> result = new ArrayList<>(base);
+        boolean[] copied = new boolean[base.size()];
+        for (ShapeKey key : keys) {
+            float weight = ShapeKeyProfile.clampWeight(weights.getOrDefault(key.id(), 0f));
+            if (weight == 0f) continue;
+            for (ShapeKey.DeltaBlock block : key.blocks()) {
+                for (int i = 0; i < block.positions().length; i += 3) {
+                    int index = block.firstVertex() + i / 3;
+                    if (index >= base.size()) break;
+                    if (!copied[index]) {
+                        SkinnedVertex original = base.get(index);
+                        Vertex v = original.vertex;
+                        result.set(index, new SkinnedVertex(new Vertex(
+                                new Float3(v.position.x, v.position.y, v.position.z),
+                                new Float3(v.normals.x, v.normals.y, v.normals.z),
+                                v.textureUV, v.texture, v.color), original.boneIds, original.weights));
+                        copied[index] = true;
+                    }
+                    Vertex v = result.get(index).vertex;
+                    v.position.x += weight * block.positions()[i];
+                    v.position.y += weight * block.positions()[i + 1];
+                    v.position.z += weight * block.positions()[i + 2];
+                    v.normals.x += weight * block.normals()[i];
+                    v.normals.y += weight * block.normals()[i + 1];
+                    v.normals.z += weight * block.normals()[i + 2];
+                }
+            }
+        }
+        for (int i = 0; i < result.size(); i++) {
+            if (!copied[i]) continue;
+            Vertex v = result.get(i).vertex;
+            Vector3f n = new Vector3f(v.normals.x, v.normals.y, v.normals.z);
+            if (n.lengthSquared() == 0f) {
+                Float3 original = base.get(i).vertex.normals;
+                n.set(original.x, original.y, original.z);
+            }
+            if (n.lengthSquared() > 0f) n.normalize();
+            v.normals = new Float3(n.x, n.y, n.z);
+        }
+        return result;
     }
 
     public boolean hasAnimations() {
@@ -105,39 +177,73 @@ public class SkinnedModel {
     }
 
     public List<Vertex> render(String animationName, float seconds) {
-        return render(animationName, seconds, CustomModelPose.HeadLookRotation.NONE, CustomModelPose.LimbPose.NONE, false, false);
+        return render(animationName, seconds, CustomModelPose.HeadLookRotation.NONE, CustomModelPose.LimbPose.NONE, false, false, VoiceShapePose.NONE);
     }
 
     public List<Vertex> render(String animationName, float seconds, CustomModelPose.HeadLookRotation headLookRotation) {
-        return render(animationName, seconds, headLookRotation, CustomModelPose.LimbPose.NONE, false, false);
+        return render(animationName, seconds, headLookRotation, CustomModelPose.LimbPose.NONE, false, false, VoiceShapePose.NONE);
     }
 
     public List<Vertex> render(String animationName, float seconds, CustomModelPose.HeadLookRotation headLookRotation, CustomModelPose.LimbPose limbPose) {
-        return render(animationName, seconds, headLookRotation, limbPose, false, true);
+        return render(animationName, seconds, headLookRotation, limbPose, false, true, VoiceShapePose.NONE);
     }
 
     public List<Vertex> renderWithHiddenHead(String animationName, float seconds, CustomModelPose.HeadLookRotation headLookRotation, CustomModelPose.LimbPose limbPose) {
-        return render(animationName, seconds, headLookRotation, limbPose, true, true);
+        return render(animationName, seconds, headLookRotation, limbPose, true, true, VoiceShapePose.NONE);
     }
 
-    private List<Vertex> render(String animationName, float seconds, CustomModelPose.HeadLookRotation headLookRotation, CustomModelPose.LimbPose limbPose, boolean hideHead, boolean liveLimbPose) {
+    public List<Vertex> render(String animationName, float seconds, CustomModelPose.HeadLookRotation headLookRotation,
+                               CustomModelPose.LimbPose limbPose, VoiceShapePose voicePose) {
+        return render(animationName, seconds, headLookRotation, limbPose, false, true, voicePose);
+    }
+
+    public List<Vertex> renderWithHiddenHead(String animationName, float seconds, CustomModelPose.HeadLookRotation headLookRotation,
+                                             CustomModelPose.LimbPose limbPose, VoiceShapePose voicePose) {
+        return render(animationName, seconds, headLookRotation, limbPose, true, true, voicePose);
+    }
+
+    public List<Vertex> voicePreview(VoiceShapePose voicePose) {
+        if (voicePose.isNone()) return staticVertices();
+        return renderPose(null, 0f, CustomModelPose.HeadLookRotation.NONE, CustomModelPose.LimbPose.NONE, false, false, voicePose);
+    }
+
+    private synchronized List<SkinnedVertex> voiceVertices(VoiceShapePose pose) {
+        if (pose.shapeKeyId().isEmpty()) return shapedVertices;
+        if (!pose.shapeKeyId().equals(cachedVoiceShapeId) || pose.weight() != cachedVoiceShapeWeight) {
+            Map<String, Float> weights = new java.util.LinkedHashMap<>(shapeKeyWeights);
+            weights.put(pose.shapeKeyId(), pose.weight());
+            cachedVoiceVertices = applyShapeKeys(vertices, shapeKeys, weights);
+            cachedVoiceShapeId = pose.shapeKeyId();
+            cachedVoiceShapeWeight = pose.weight();
+        }
+        return cachedVoiceVertices;
+    }
+
+    private List<Vertex> render(String animationName, float seconds, CustomModelPose.HeadLookRotation headLookRotation, CustomModelPose.LimbPose limbPose, boolean hideHead, boolean liveLimbPose, VoiceShapePose voicePose) {
         if (!animationsEnabled) {
-            return staticVertices(hideHead);
+            return voicePose.isNone() ? staticVertices(hideHead)
+                    : renderPose(null, seconds, CustomModelPose.HeadLookRotation.NONE, CustomModelPose.LimbPose.NONE, hideHead, false, voicePose);
         }
         boolean sleeping = "Sleep".equals(animationName);
         return renderPose(animations.get(animationName), seconds,
                 sleeping ? CustomModelPose.HeadLookRotation.NONE : headLookRotation,
-                sleeping ? CustomModelPose.LimbPose.NONE : limbPose, hideHead, liveLimbPose || sleeping);
+                sleeping ? CustomModelPose.LimbPose.NONE : limbPose, hideHead, liveLimbPose || sleeping, voicePose);
     }
 
-    private List<Vertex> renderPose(Animation animation, float seconds, CustomModelPose.HeadLookRotation headLookRotation, CustomModelPose.LimbPose limbPose, boolean hideHead, boolean liveLimbPose) {
+    private List<Vertex> renderPose(Animation animation, float seconds, CustomModelPose.HeadLookRotation headLookRotation, CustomModelPose.LimbPose limbPose, boolean hideHead, boolean liveLimbPose, VoiceShapePose voicePose) {
+        int voiceBone = -1;
+        if (!voicePose.boneName().isEmpty()) {
+            for (int i = 0; i < bones.size(); i++) {
+                if (voicePose.boneName().equals(bones.get(i).name)) { voiceBone = i; break; }
+            }
+        }
         Matrix4f[] globals = new Matrix4f[bones.size()];
         Matrix4f[] skin = new Matrix4f[bones.size()];
         Matrix4f localLook = headLookRotation.yawRadians() == 0f && headLookRotation.pitchRadians() == 0f
                 ? new Matrix4f()
                 : new Matrix4f(headBindBasis).invert().mul(headLookRotation.toMatrix()).mul(headBindBasis);
         for (int i = 0; i < bones.size(); i++) {
-            globalTransform(i, animation, seconds, limbPose, liveLimbPose, localLook, globals);
+            globalTransform(i, animation, seconds, limbPose, liveLimbPose, localLook, globals, voicePose, voiceBone);
             skin[i] = new Matrix4f(globals[i]).mul(bones.get(i).inverseBind);
         }
 
@@ -145,10 +251,10 @@ public class SkinnedModel {
             logSkinningDebug(seconds, animation, skin);
             skinningDebugLogged = true;
         }
-        return renderSkinnedVertices(skin, hideHead);
+        return renderSkinnedVertices(skin, hideHead, voiceVertices(voicePose));
     }
 
-    private Matrix4f globalTransform(int boneIndex, Animation animation, float seconds, CustomModelPose.LimbPose limbPose, boolean liveLimbPose, Matrix4f localLook, Matrix4f[] globals) {
+    private Matrix4f globalTransform(int boneIndex, Animation animation, float seconds, CustomModelPose.LimbPose limbPose, boolean liveLimbPose, Matrix4f localLook, Matrix4f[] globals, VoiceShapePose voicePose, int voiceBone) {
         if (globals[boneIndex] != null) {
             return globals[boneIndex];
         }
@@ -176,7 +282,7 @@ public class SkinnedModel {
             local.mul(localLook);
         }
         Matrix4f global = bone.parentIndex >= 0
-                ? new Matrix4f(globalTransform(bone.parentIndex, animation, seconds, limbPose, liveLimbPose, localLook, globals)).mul(local)
+                ? new Matrix4f(globalTransform(bone.parentIndex, animation, seconds, limbPose, liveLimbPose, localLook, globals, voicePose, voiceBone)).mul(local)
                 : local;
 
         CustomModelPose.BodyPartRotation rotation = liveLimbPose ? limbRotation(boneIndex, limbPose) : CustomModelPose.BodyPartRotation.NONE;
@@ -187,6 +293,14 @@ public class SkinnedModel {
         if (!rotation.isNone()) {
             Vector3f joint = global.getTranslation(new Vector3f());
             global = rotation.globalPivotDelta(joint).mul(global);
+        }
+        if (boneIndex == voiceBone) {
+            // Add model-space XYZ rotation about the current joint and propagate it to children.
+            Vector3f joint = global.getTranslation(new Vector3f());
+            global = new Matrix4f().translate(joint)
+                    .rotateXYZ((float) Math.toRadians(voicePose.x()), (float) Math.toRadians(voicePose.y()),
+                            (float) Math.toRadians(voicePose.z()))
+                    .translate(-joint.x, -joint.y, -joint.z).mul(global);
         }
         // Children compose with the posed global, so every delta propagates in hierarchy order.
         globals[boneIndex] = global;
@@ -254,7 +368,7 @@ public class SkinnedModel {
         return false;
     }
 
-    private List<Vertex> renderSkinnedVertices(Matrix4f[] skin, boolean hideHead) {
+    private List<Vertex> renderSkinnedVertices(Matrix4f[] skin, boolean hideHead, List<SkinnedVertex> renderVertices) {
         Matrix3f[] normalSkin = new Matrix3f[skin.length];
         for (int i = 0; i < skin.length; i++) {
             normalSkin[i] = skin[i].normal(new Matrix3f());
@@ -265,7 +379,7 @@ public class SkinnedModel {
                 continue;
             }
 
-            SkinnedVertex skinned = vertices.get(vertexIndex);
+            SkinnedVertex skinned = renderVertices.get(vertexIndex);
             Vector3f p = new Vector3f();
             Vector3f n = new Vector3f();
             Vector3f basePos = new Vector3f(skinned.vertex.position.x, skinned.vertex.position.y, skinned.vertex.position.z);
@@ -416,7 +530,7 @@ public class SkinnedModel {
             if (hideHead && isHeadTriangleVertex(vertexIndex)) {
                 continue;
             }
-            out.add(vertices.get(vertexIndex).vertex);
+            out.add(shapedVertices.get(vertexIndex).vertex);
         }
         return out;
     }

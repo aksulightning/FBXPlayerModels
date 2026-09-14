@@ -355,6 +355,13 @@ public class SkinManager {
     }
 
     public static void putCacheEntry(String uuid, @Nullable SkinnedModel skinnedModel, ParsingFormat format){
+        ClientSkin selected = FBXPlayerModelsClient.options().selectedSkin;
+        LookupSkin lookup = skinLookup.get(uuid);
+        if (skinnedModel != null && selected != null && lookup != null
+                && Objects.equals(uuid, PlatformServices.client().currentSessionUuid())
+                && Objects.equals(lookup.hash, selected.hash)) {
+            skinnedModel = skinnedModel.withShapeKeyProfile(selected.defaultShapeKeyProfile());
+        }
         skinCache.put(uuid, new CacheSkin(skinnedModel, format));
     }
 
@@ -378,6 +385,18 @@ public class SkinManager {
         loadSelfSkin();
     }
 
+    public static void saveDefaultShapeKeyProfile() {
+        var options = FBXPlayerModelsClient.options();
+        String uuid = PlatformServices.client().currentSessionUuid();
+        CacheSkin cache = uuid == null ? null : skinCache.get(uuid);
+        LookupSkin lookup = uuid == null ? null : skinLookup.get(uuid);
+        if (cache != null && cache.skinnedModel != null && lookup != null
+                && Objects.equals(lookup.hash, options.selectedSkin.hash)) {
+            skinCache.put(uuid, new CacheSkin(cache.skinnedModel.withShapeKeyProfile(options.selectedSkin.defaultShapeKeyProfile()), cache.format));
+        }
+        FileUtil.writeSave(options);
+    }
+
     private static SkinnedModel withSavedAnimationSettings(SkinnedModel model, ClientSkin selectedSkin) {
         selectedSkin.clipMappings().remove("Idle");
 
@@ -399,6 +418,7 @@ public class SkinManager {
 
         return model.withLogicalRigBinding(selectedSkin.binding())
                 .withAnimations(animations)
-                .withAnimationsEnabled(selectedSkin.animationsEnabled());
+                .withAnimationsEnabled(selectedSkin.animationsEnabled())
+                .withShapeKeyProfile(selectedSkin.defaultShapeKeyProfile());
     }
 }

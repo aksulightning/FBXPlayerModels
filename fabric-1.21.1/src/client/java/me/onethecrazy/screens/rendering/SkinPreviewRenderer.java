@@ -30,6 +30,7 @@ public class SkinPreviewRenderer {
     private final int dimensions;
     private final float scale;
     private float yaw, pitch = 0;
+    private float zoom = 1f;
     private String selectedPreviewHash = "";
     @Nullable private CacheSkin selectedPreviewCache;
 
@@ -85,6 +86,20 @@ public class SkinPreviewRenderer {
         ((LivingEntityRenderExtension)playerRenderer).fbx_player_models$setPlayerAsNull();
     }
 
+    public void setView(float yaw, float pitch, float zoom) {
+        this.yaw = yaw;
+        this.pitch = pitch;
+        this.zoom = zoom;
+    }
+
+    /** Render a supplied default-pose model independently of the player display setting. */
+    public void renderModelPreview(DrawContext ctx, @Nullable CacheSkin cache) {
+        List<Vertex> vertices = cache == null ? null : cache.skinnedModel == null
+                ? cache.vertices : cache.skinnedModel.staticVertices();
+        renderVertices(ctx, vertices, true);
+        ctx.drawBorder(x, y, dimensions, dimensions, 0xFFFFFFFF);
+    }
+
     private boolean renderCachedSelfSkin(DrawContext ctx, MinecraftClient client, float deltaTicks) {
         if (!FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()) {
             return false;
@@ -111,6 +126,10 @@ public class SkinPreviewRenderer {
             );
         }
 
+        return renderVertices(ctx, vertices, false);
+    }
+
+    private boolean renderVertices(DrawContext ctx, @Nullable List<Vertex> vertices, boolean centered) {
         if (vertices == null || vertices.isEmpty()) {
             return false;
         }
@@ -119,10 +138,12 @@ public class SkinPreviewRenderer {
 
         MatrixStack matrices = ctx.getMatrices();
         matrices.push();
-        matrices.translate(x + dimensions / 2f, y + dimensions - 6f, 100f);
-        matrices.scale(scale, -scale, scale);
+        matrices.translate(x + dimensions / 2f, centered ? y + dimensions / 2f : y + dimensions - 6f, 100f);
+        float viewScale = scale * zoom;
+        matrices.scale(viewScale, -viewScale, viewScale);
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(yaw));
         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pitch));
+        if (centered) matrices.translate(0f, -1f, 0f);
 
         MatrixStack.Entry entry = matrices.peek();
         Matrix4f matrix = entry.getPositionMatrix();

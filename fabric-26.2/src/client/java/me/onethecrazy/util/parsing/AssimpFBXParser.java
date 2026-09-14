@@ -2,6 +2,8 @@ package me.onethecrazy.util.parsing;
 
 import me.onethecrazy.FBXPlayerModelsMod;
 import com.aksulightning.fbxplayermodels.model.FbxCoordinateSpace;
+import com.aksulightning.fbxplayermodels.model.shape.ShapeKey;
+import com.aksulightning.fbxplayermodels.model.shape.FbxShapeKeyGeometry;
 import me.onethecrazy.FBXPlayerModels;
 import me.onethecrazy.util.objects.Float2;
 import me.onethecrazy.util.objects.Float3;
@@ -86,8 +88,9 @@ public class AssimpFBXParser {
             }
 
             MaterialResolver materials = new MaterialResolver(scene, path);
-            if (!hasMeshBones(scene)) {
-                lastStatus = "assimp: no mesh bones";
+            List<FbxShapeKeyGeometry> sourceShapes = FBXParser.readShapeKeyGeometries(path);
+            if (!hasMeshBones(scene) && !hasShapeKeys(scene) && sourceShapes.isEmpty()) {
+                lastStatus = "assimp: no mesh bones or shape keys";
                 return Optional.empty();
             }
 
@@ -105,10 +108,14 @@ public class AssimpFBXParser {
             }
 
             List<SkinnedVertex> out = new ArrayList<>();
+            Map<String, ShapeKey> shapeKeys = new LinkedHashMap<>();
             for (MeshInstance instance : meshInstances(scene.mRootNode(), sceneToModel(scene))) {
                 AIMesh mesh = AIMesh.create(meshes.get(instance.meshIndex));
                 MeshAppearance appearance = materials.appearance(mesh.mMaterialIndex());
                 List<SkinnedVertex> meshVertices = skinnedVertices(mesh, appearance, boneIndex, nodeIndices);
+                if (!collectShapeKeys(mesh, instance, out.size(), shapeKeys)) {
+                    collectBinaryShapeKeys(mesh, meshVertices, sourceShapes, instance, out.size(), shapeKeys);
+                }
                 transformMesh(meshVertices.stream().map(vertex -> vertex.vertex).toList(), instance.globalTransform);
                 out.addAll(meshVertices);
             }
@@ -125,13 +132,114 @@ public class AssimpFBXParser {
                 LogicalRigAnimator.proceduralAnimations(bones, null).forEach(animations::putIfAbsent);
             }
 
-            SkinnedModel model = new SkinnedModel(bones, out, animations);
+            SkinnedModel model = new SkinnedModel(bones, out, animations).withShapeKeys(new ArrayList<>(shapeKeys.values()));
             lastStatus = "assimp skinned bones=" + bones.size()
                     + " weighted=" + model.weightedVertexCount() + "/" + model.vertices.size()
-                    + " animations=" + animations.keySet();
+                    + " animations=" + animations.keySet()
+                    + " shapeKeys=" + shapeKeys.size();
             return Optional.of(model);
         } finally {
             Assimp.aiReleaseImport(scene);
+        }
+    }
+
+    private static boolean hasShapeKeys(AIScene scene) {
+        PointerBuffer meshes = scene.mMeshes();
+        if (meshes == null) return false;
+        for (int i = 0; i < scene.mNumMeshes(); i++) {
+            if (AIMesh.create(meshes.get(i)).mNumAnimMeshes() > 0) return true;
+        }
+        return false;
+    }
+
+    private static boolean collectShapeKeys(AIMesh mesh, MeshInstance instance, int firstVertex, Map<String, ShapeKey> keys) {
+        PointerBuffer targets = mesh.mAnimMeshes();
+        if (targets == null) return false;
+        boolean found = false;
+        List<Integer> expandedIndices = new ArrayList<>();
+        for (int f = 0; f < mesh.mNumFaces(); f++) {
+            AIFace face = mesh.mFaces().get(f);
+            if (face.mNumIndices() != 3) continue;
+            IntBuffer indices = face.mIndices();
+            expandedIndices.add(indices.get(0));
+            expandedIndices.add(indices.get(1));
+            expandedIndices.add(indices.get(2));
+            expandedIndices.add(indices.get(2));
+        }
+        Matrix3f normalTransform = instance.globalTransform.normal(new Matrix3f());
+        for (int t = 0; t < mesh.mNumAnimMeshes(); t++) {
+            AIAnimMesh target = AIAnimMesh.create(targets.get(t));
+            if (target.mNumVertices() != mesh.mNumVertices() || target.mVertices() == null) continue;
+            String name = cleanName(target.mName().dataString());
+            if (name.isBlank()) name = "Shape key " + (t + 1);
+            // Mesh and target identities distinguish duplicate names and share weights across instances.
+            String id = "mesh/" + instance.meshIndex + "/target/" + t + "/" + name;
+            float[] positions = new float[expandedIndices.size() * 3];
+            float[] normals = new float[positions.length];
+            for (int i = 0; i < expandedIndices.size(); i++) {
+                int source = expandedIndices.get(i);
+                Vector3f delta = vector(convert(target.mVertices().get(source)))
+                        .sub(vector(convert(mesh.mVertices().get(source))));
+                instance.globalTransform.transformDirection(delta);
+                int at = i * 3;
+                positions[at] = delta.x;
+                positions[at + 1] = delta.y;
+                positions[at + 2] = delta.z;
+                if (target.mNormals() != null && mesh.mNormals() != null) {
+                    Vector3f baseNormal = normalTransform.transform(vector(convertNormal(mesh.mNormals().get(source))));
+                    Vector3f targetNormal = normalTransform.transform(vector(convertNormal(target.mNormals().get(source))));
+                    if (baseNormal.lengthSquared() > 0f) baseNormal.normalize();
+                    if (targetNormal.lengthSquared() > 0f) targetNormal.normalize();
+                    targetNormal.sub(baseNormal);
+                    normals[at] = targetNormal.x;
+                    normals[at + 1] = targetNormal.y;
+                    normals[at + 2] = targetNormal.z;
+                }
+            }
+            List<ShapeKey.DeltaBlock> blocks = new ArrayList<>();
+            ShapeKey existing = keys.get(id);
+            if (existing != null) blocks.addAll(existing.blocks());
+            blocks.add(new ShapeKey.DeltaBlock(firstVertex, positions, normals));
+            keys.put(id, new ShapeKey(id, name, blocks));
+            found = true;
+        }
+        return found;
+    }
+
+    private static void collectBinaryShapeKeys(AIMesh mesh, List<SkinnedVertex> vertices,
+                                              List<FbxShapeKeyGeometry> sources, MeshInstance instance,
+                                              int firstVertex, Map<String, ShapeKey> keys) {
+        if (sources.isEmpty() || vertices.isEmpty()) return;
+        String meshName = cleanName(mesh.mName().dataString());
+        if (meshName.startsWith("Geometry::")) meshName = meshName.substring("Geometry::".length());
+        String sourceName = meshName;
+        List<FbxShapeKeyGeometry> namedSources = sources.stream().filter(source -> source.name().equals(sourceName)).toList();
+        List<FbxShapeKeyGeometry> candidates = namedSources.isEmpty() ? sources : namedSources;
+        List<Float3> positions = vertices.stream().map(vertex -> vertex.vertex.position).toList();
+        List<Float2> uvs = vertices.stream().map(vertex -> vertex.vertex.textureUV).toList();
+        FbxShapeKeyGeometry selected = null;
+        List<Integer> controlIndices = null;
+        for (FbxShapeKeyGeometry candidate : candidates) {
+            Optional<List<Integer>> mapping = candidate.mapControlPoints(positions, uvs);
+            if (mapping.isEmpty()) continue;
+            if (selected != null) {
+                FBXPlayerModelsMod.LOGGER.warn("Ambiguous FBX shape key source for mesh {}; retaining native geometry", meshName);
+                return;
+            }
+            selected = candidate;
+            controlIndices = mapping.get();
+        }
+        if (selected == null) {
+            if (!namedSources.isEmpty()) FBXPlayerModelsMod.LOGGER.warn("Could not map FBX shape key control points for mesh {}", meshName);
+            return;
+        }
+        for (ShapeKey key : selected.expand(firstVertex, controlIndices,
+                vertices.stream().map(vertex -> vertex.vertex.normals).toList(), instance.globalTransform)) {
+            List<ShapeKey.DeltaBlock> blocks = new ArrayList<>();
+            ShapeKey existing = keys.get(key.id());
+            if (existing != null) blocks.addAll(existing.blocks());
+            blocks.addAll(key.blocks());
+            keys.put(key.id(), new ShapeKey(key.id(), key.name(), blocks));
         }
     }
 
