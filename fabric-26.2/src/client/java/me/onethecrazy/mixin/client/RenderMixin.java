@@ -10,6 +10,7 @@ import me.onethecrazy.util.LivingEntityRenderExtension;
 import me.onethecrazy.util.model.animation.CustomModelPose;
 import me.onethecrazy.util.objects.CacheSkin;
 import me.onethecrazy.util.objects.Vertex;
+import me.onethecrazy.util.render.VoiceShapeClient;
 import me.onethecrazy.util.render.CustomSkinRenderData;
 import net.minecraft.core.Direction;
 import net.minecraft.client.Minecraft;
@@ -93,6 +94,8 @@ public abstract class RenderMixin implements LivingEntityRenderExtension {
                 seconds,
                 limbPose,
                 CustomModelPose.computeHeadLookRotation(renderedPlayer, tickDelta),
+                cacheResult.skinnedModel == null ? com.aksulightning.fbxplayermodels.voice.VoiceShapePose.NONE
+                        : VoiceShapeClient.poseFor(uuid, cacheResult.skinnedModel),
                 Mth.rotLerp(tickDelta, renderedPlayer.yBodyRotO, renderedPlayer.yBodyRot),
                 state.bodyRot,
                 state.yRot,
@@ -120,7 +123,7 @@ public abstract class RenderMixin implements LivingEntityRenderExtension {
                             ? CustomModelPose.computeHeadLookRotation(state.yRot, state.xRot)
                             : renderData.headLookRotation();
             vertices = renderData.skinnedModel().render(
-                    renderData.animation(), renderData.animationSeconds(), headLookRotation, renderData.limbPose());
+                    renderData.animation(), renderData.animationSeconds(), headLookRotation, renderData.limbPose(), renderData.voicePose());
         }
         if (vertices == null || vertices.isEmpty()) {
             return;

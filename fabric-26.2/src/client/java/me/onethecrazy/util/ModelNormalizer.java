@@ -51,7 +51,7 @@ public class ModelNormalizer {
         if (model.isNormalized()) {
             return model;
         }
-        List<Vertex> vertices = model.staticVertices();
+        List<Vertex> vertices = model.vertices.stream().map(vertex -> vertex.vertex).toList();
         Float2 pxMinMax = getModelHeight(vertices);
 
         float minY = pxMinMax.v, maxY = pxMinMax.u;

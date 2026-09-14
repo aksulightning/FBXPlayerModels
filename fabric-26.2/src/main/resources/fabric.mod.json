@@ -23,6 +23,9 @@
 		"client": [
 			"me.onethecrazy.FBXPlayerModelsClient"
 		],
+		"voicechat": [
+			"com.aksulightning.fbxplayermodels.voice.SimpleVoiceChatPlugin"
+		],
 		"modmenu": [
 			"me.onethecrazy.ModMenuIntegration"
 		]
@@ -34,6 +37,9 @@
 			"environment": "client"
 		}
 	],
+	"suggests": {
+		"voicechat": "*"
+	},
 	"depends": {
 		"fabricloader": ">=0.19.3",
 		"minecraft": "~26.2",

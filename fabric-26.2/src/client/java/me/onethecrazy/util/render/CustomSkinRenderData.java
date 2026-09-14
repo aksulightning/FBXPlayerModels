@@ -1,6 +1,7 @@
 package me.onethecrazy.util.render;
 
 import me.onethecrazy.util.model.animation.CustomModelPose;
+import com.aksulightning.fbxplayermodels.voice.VoiceShapePose;
 import me.onethecrazy.util.objects.SkinnedModel;
 import me.onethecrazy.util.objects.Vertex;
 import net.fabricmc.fabric.api.client.rendering.v1.RenderStateDataKey;
@@ -17,6 +18,7 @@ public record CustomSkinRenderData(
         float animationSeconds,
         CustomModelPose.LimbPose limbPose,
         CustomModelPose.HeadLookRotation headLookRotation,
+        VoiceShapePose voicePose,
         float interpolatedBodyYaw,
         float extractedBodyRot,
         float extractedHeadYaw,
@@ -41,6 +43,7 @@ public record CustomSkinRenderData(
                 0f,
                 CustomModelPose.LimbPose.NONE,
                 CustomModelPose.HeadLookRotation.NONE,
+                VoiceShapePose.NONE,
                 extractedBodyRot,
                 extractedBodyRot,
                 0f,

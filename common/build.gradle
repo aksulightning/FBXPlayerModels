@@ -7,9 +7,11 @@ version = rootProject.mod_version
 
 repositories {
 	mavenCentral()
+	maven { url = 'https://maven.maxhenkel.de/repository/public' }
 }
 
 dependencies {
+	compileOnly "de.maxhenkel.voicechat:voicechat-api:2.6.0"
 	api "org.joml:joml:1.10.8"
 	compileOnly "org.jetbrains:annotations:24.1.0"
 }

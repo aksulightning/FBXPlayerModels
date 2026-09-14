@@ -28,6 +28,7 @@ public class SkinPreviewRenderer {
     private final int dimensions;
     private final float scale;
     private float yaw, pitch = 0;
+    private float zoom = 1f;
     private String selectedPreviewHash = "";
     @Nullable private CacheSkin selectedPreviewCache;
 
@@ -66,6 +67,20 @@ public class SkinPreviewRenderer {
         this.pitch += pitch;
     }
 
+    public void setView(float yaw, float pitch, float zoom) {
+        this.yaw = yaw;
+        this.pitch = pitch;
+        this.zoom = zoom;
+    }
+
+    /** Render a supplied default-pose model independently of the player display setting. */
+    public void renderModelPreview(GuiGraphicsExtractor ctx, @Nullable CacheSkin cache) {
+        List<Vertex> vertices = cache == null ? null : cache.skinnedModel == null
+                ? cache.vertices : cache.skinnedModel.staticVertices();
+        renderVertices(ctx, vertices, Minecraft.getInstance().player);
+        ctx.outline(x, y, dimensions, dimensions, 0xFFFFFFFF);
+    }
+
     private boolean renderCachedSelfSkin(GuiGraphicsExtractor ctx, Minecraft client, float deltaTicks, @Nullable AbstractClientPlayer player) {
         if (!FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()) {
             return false;
@@ -92,6 +107,10 @@ public class SkinPreviewRenderer {
             );
         }
 
+        return renderVertices(ctx, vertices, player);
+    }
+
+    private boolean renderVertices(GuiGraphicsExtractor ctx, @Nullable List<Vertex> vertices, @Nullable AbstractClientPlayer player) {
         if (vertices == null || vertices.isEmpty()) {
             return false;
         }
@@ -114,7 +133,7 @@ public class SkinPreviewRenderer {
         ctx.enableScissor(x, y, x + dimensions, y + dimensions);
         ctx.entity(
                 state,
-                Math.round(scale),
+                Math.max(1, Math.round(scale * zoom)),
                 new Vector3f(0f, 1f, 0f),
                 rotation,
                 new Quaternionf(rotation).conjugate(),

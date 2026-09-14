@@ -2,6 +2,8 @@ package me.onethecrazy.util.parsing;
 
 import me.onethecrazy.FBXPlayerModelsMod;
 import com.aksulightning.fbxplayermodels.model.FbxCoordinateSpace;
+import com.aksulightning.fbxplayermodels.model.shape.FbxShapeKeyGeometry;
+import com.aksulightning.fbxplayermodels.model.shape.ShapeKey;
 import me.onethecrazy.FBXPlayerModels;
 import me.onethecrazy.util.objects.Float2;
 import me.onethecrazy.util.objects.Float3;
@@ -124,6 +126,90 @@ public class FBXParser implements IParser {
         return parseSkinnedBinaryFallback(path);
     }
 
+    static List<FbxShapeKeyGeometry> readShapeKeyGeometries(Path path) {
+        try {
+            byte[] bytes = Files.readAllBytes(path);
+            if (!isBinaryFbx(bytes)) return List.of();
+            BinaryNode root = new BinaryFbxReader(bytes).readRoot();
+            return shapeKeyGeometries(new SceneIndex(root));
+        } catch (Exception e) {
+            FBXPlayerModelsMod.LOGGER.warn("Failed to read FBX blend shape records from {}", path, e);
+            return List.of();
+        }
+    }
+
+    private static List<FbxShapeKeyGeometry> shapeKeyGeometries(SceneIndex index) {
+        List<FbxShapeKeyGeometry> result = new ArrayList<>();
+        for (BinaryNode geometry : index.nodesOfType("Geometry", "Mesh")) {
+            long geometryId = geometry.longProperty(0);
+            List<Float3> controlPoints = vec3List(floatListProperty(geometry.child("Vertices")));
+            List<FbxShapeKeyGeometry.Target> targets = new ArrayList<>();
+            for (BinaryNode blend : index.childNodesOfType(geometryId, "Deformer", "BlendShape")) {
+                for (BinaryNode channel : index.childNodesOfType(blend.longProperty(0), "Deformer", "BlendShapeChannel")) {
+                    List<BinaryNode> shapes = index.childNodesOfType(channel.longProperty(0), "Geometry", "Shape");
+                    for (BinaryNode shape : shapes) {
+                        List<Integer> ids = intListProperty(shape.child("Indexes"));
+                        List<Float> deltas = floatListProperty(shape.child("Vertices"));
+                        List<Float> normalDeltas = floatListProperty(shape.child("Normals"));
+                        if (deltas.size() != ids.size() * 3 || ids.isEmpty()) continue;
+                        float[] positions = new float[controlPoints.size() * 3];
+                        float[] normals = new float[positions.length];
+                        List<Float> fullWeights = floatListProperty(channel.child("FullWeights"));
+                        boolean valid = true;
+                        for (int i = 0; i < ids.size(); i++) {
+                            int control = ids.get(i);
+                            if (control < 0 || control >= controlPoints.size()) {
+                                valid = false;
+                                break;
+                            }
+                            // Blender uses FullWeights for per-vertex shape key group weights.
+                            float weight = shapes.size() == 1 && fullWeights.size() == ids.size()
+                                    ? Math.max(0f, Math.min(1f, fullWeights.get(i) / 100f)) : 1f;
+                            if (!Float.isFinite(weight)) weight = 0f;
+                            for (int axis = 0; axis < 3; axis++) {
+                                float delta = deltas.get(i * 3 + axis);
+                                if (!Float.isFinite(delta)) valid = false;
+                                positions[control * 3 + axis] = delta * weight;
+                                if (normalDeltas.size() == deltas.size()) {
+                                    float normal = normalDeltas.get(i * 3 + axis);
+                                    if (Float.isFinite(normal)) normals[control * 3 + axis] = normal * weight;
+                                }
+                            }
+                        }
+                        if (!valid) {
+                            FBXPlayerModelsMod.LOGGER.warn("Skipping malformed FBX shape {}", fbxObjectName(shape.stringProperty(1)));
+                            continue;
+                        }
+                        String name = fbxObjectName(channel.stringProperty(1));
+                        if (name.isBlank() || shapes.size() > 1) name = fbxObjectName(shape.stringProperty(1));
+                        if (name.isBlank()) name = "Shape key " + (targets.size() + 1);
+                        String id = "fbx/geometry/" + geometryId + "/channel/" + channel.longProperty(0) + "/shape/" + shape.longProperty(0);
+                        targets.add(new FbxShapeKeyGeometry.Target(id, name, positions, normals));
+                    }
+                }
+            }
+            if (targets.isEmpty()) continue;
+            List<FbxShapeKeyGeometry.Corner> corners = new ArrayList<>();
+            LayerData<Float2> uvs = parseUvs(geometry);
+            List<Integer> polygonIndices = intListProperty(geometry.child("PolygonVertexIndex"));
+            int polygon = 0;
+            for (int i = 0; i < polygonIndices.size(); i++) {
+                int raw = polygonIndices.get(i);
+                int control = raw < 0 ? -raw - 1 : raw;
+                corners.add(new FbxShapeKeyGeometry.Corner(control, uvs.valueFor(new FaceVertex(control, i, polygon), Float2.empty())));
+                if (raw < 0) polygon++;
+            }
+            result.add(new FbxShapeKeyGeometry(geometryId, fbxObjectName(geometry.stringProperty(1)), controlPoints, corners, targets));
+        }
+        return result;
+    }
+
+    private static String fbxObjectName(String value) {
+        String name = sanitizeName(value);
+        int prefix = name.indexOf("::");
+        return prefix < 0 ? name : name.substring(prefix + 2);
+    }
+
     private Optional<SkinnedModel> parseSkinnedBinaryFallback(Path path) {
         try {
             byte[] bytes = Files.readAllBytes(path);
@@ -137,12 +223,14 @@ public class FBXParser implements IParser {
             SceneIndex index = new SceneIndex(root);
             MaterialResolver materials = new MaterialResolver(root, path);
 
-            if (index.nodesOfType("Model", "LimbNode").isEmpty() && index.nodesOfType("Deformer", "Cluster").isEmpty()) {
-                lastRigStatus = "no imported skeleton";
+            List<FbxShapeKeyGeometry> sourceShapes = shapeKeyGeometries(index);
+            if (index.nodesOfType("Model", "LimbNode").isEmpty() && index.nodesOfType("Deformer", "Cluster").isEmpty() && sourceShapes.isEmpty()) {
+                lastRigStatus = "no imported skeleton or shape keys";
                 return Optional.empty();
             }
             FallbackSkeleton skeleton = fallbackSkeleton(index);
             List<SkinnedVertex> vertices = new ArrayList<>();
+            List<ShapeKey> shapeKeys = new ArrayList<>();
             for (BinaryNode geometry : root.findAll("Geometry")) {
                 if (geometry.properties.size() < 3 || !"Mesh".equals(geometry.stringProperty(2))) {
                     continue;
@@ -164,15 +252,22 @@ public class FBXParser implements IParser {
                     }
                 }
                 List<SkinnedVertex> meshVertices = mesh.toSkinnedVertices(weights);
-                transformFallbackMesh(meshVertices.stream().map(vertex -> vertex.vertex).toList(), geometryTransform(index, skeleton, geometry));
+                Matrix4f transform = geometryTransform(index, skeleton, geometry);
+                for (FbxShapeKeyGeometry sourceShape : sourceShapes) {
+                    if (sourceShape.geometryId() == geometry.longProperty(0)) {
+                        shapeKeys.addAll(sourceShape.expand(vertices.size(), mesh.expandedControlPointIndices(),
+                                meshVertices.stream().map(vertex -> vertex.vertex.normals).toList(), transform));
+                    }
+                }
+                transformFallbackMesh(meshVertices.stream().map(vertex -> vertex.vertex).toList(), transform);
                 vertices.addAll(meshVertices);
             }
             if (vertices.isEmpty() || skeleton.bones.isEmpty()) {
                 lastRigStatus = "no skinned geometry found";
                 return Optional.empty();
             }
-            SkinnedModel model = new SkinnedModel(skeleton.bones, vertices, LogicalRigAnimator.proceduralAnimations(skeleton.bones, null));
-            setRigStatus("internal skinned bones=" + skeleton.bones.size() + " weighted=" + model.weightedVertexCount() + "/" + vertices.size());
+            SkinnedModel model = new SkinnedModel(skeleton.bones, vertices, LogicalRigAnimator.proceduralAnimations(skeleton.bones, null)).withShapeKeys(shapeKeys);
+            setRigStatus("internal skinned bones=" + skeleton.bones.size() + " weighted=" + model.weightedVertexCount() + "/" + vertices.size() + " shapeKeys=" + shapeKeys.size());
             return Optional.of(model);
         } catch (Exception e) {
             lastRigStatus = "error: " + e.getClass().getSimpleName();
@@ -524,6 +619,24 @@ public class FBXParser implements IParser {
                 }
             }
 
+            return out;
+        }
+
+        List<Integer> expandedControlPointIndices() {
+            List<Integer> out = new ArrayList<>();
+            List<Integer> face = new ArrayList<>();
+            for (int raw : polygonIndices) {
+                face.add(raw < 0 ? -raw - 1 : raw);
+                if (raw < 0) {
+                    for (int i = 1; i + 1 < face.size(); i++) {
+                        out.add(face.getFirst());
+                        out.add(face.get(i));
+                        out.add(face.get(i + 1));
+                        out.add(face.get(i + 1));
+                    }
+                    face.clear();
+                }
+            }
             return out;
         }
 
@@ -1723,7 +1836,8 @@ public class FBXParser implements IParser {
         SceneIndex(BinaryNode root) {
             BinaryNode settings = root.child("GlobalSettings");
             sceneToModel = FbxCoordinateSpace.fromUpAxis((int) propertyNumber(settings, "UpAxis", 1), (int) propertyNumber(settings, "UpAxisSign", 1));
-            for (BinaryNode node : root.allNodes()) {
+            BinaryNode objects = root.child("Objects");
+            for (BinaryNode node : objects == null ? List.<BinaryNode>of() : objects.children) {
                 long id = node.longProperty(0);
                 if (id != Long.MIN_VALUE) {
                     nodesById.put(id, node);
@@ -1770,6 +1884,12 @@ public class FBXParser implements IParser {
                 }
             }
 
+            return result;
+        }
+
+        List<BinaryNode> childNodesOfType(long id, String nodeName, String type) {
+            List<BinaryNode> result = new ArrayList<>();
+            addMatching(result, objectChildren.getOrDefault(id, List.of()), nodeName, type);
             return result;
         }
 

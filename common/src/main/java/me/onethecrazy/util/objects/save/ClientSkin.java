@@ -1,5 +1,7 @@
 package me.onethecrazy.util.objects.save;
 
+import com.aksulightning.fbxplayermodels.model.shape.ShapeKeyProfile;
+import com.aksulightning.fbxplayermodels.voice.VoiceShapeSettings;
 import me.onethecrazy.util.parsing.ParsingFormat;
 import me.onethecrazy.util.model.rig.LogicalRigBinding;
 import org.jetbrains.annotations.Nullable;
@@ -19,6 +21,8 @@ public class ClientSkin {
     public LogicalRigBinding logicalRigBinding;
     public Map<String, String> animationClipMappings;
     public List<String> importWarnings;
+    public Map<String, ShapeKeyProfile> shapeKeyProfiles = new LinkedHashMap<>();
+    public VoiceShapeSettings voiceShapeSettings = new VoiceShapeSettings();
 
     public ClientSkin(){
         this.hash = "";
@@ -51,11 +55,26 @@ public class ClientSkin {
         return logicalRigBinding;
     }
 
+    public ShapeKeyProfile defaultShapeKeyProfile() {
+        if (shapeKeyProfiles == null) shapeKeyProfiles = new LinkedHashMap<>();
+        ShapeKeyProfile profile = shapeKeyProfiles.get(ShapeKeyProfile.DEFAULT);
+        if (profile == null) {
+            profile = new ShapeKeyProfile();
+            shapeKeyProfiles.put(ShapeKeyProfile.DEFAULT, profile);
+        }
+        return profile;
+    }
+
     public Map<String, String> clipMappings() {
         if (animationClipMappings == null) {
             animationClipMappings = new LinkedHashMap<>();
         }
         return animationClipMappings;
+    }
+
+    public VoiceShapeSettings voiceShapeSettings() {
+        if (voiceShapeSettings == null) voiceShapeSettings = new VoiceShapeSettings();
+        return voiceShapeSettings;
     }
 
     public List<String> warnings() {

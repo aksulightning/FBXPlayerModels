@@ -22,6 +22,7 @@ import org.joml.Vector3f;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.function.DoubleConsumer;
 import java.util.function.DoubleSupplier;
 
@@ -40,6 +41,7 @@ public class ModelBindingEditorScreen extends Screen {
     private final Screen parent;
     private List<String> boneNames = List.of();
     private List<String> clipNames = List.of();
+    private CacheSkin selectedCache;
     private final List<ScrollableControl> scrollableControls = new ArrayList<>();
     private int scrollOffset;
     private boolean draggingScrollbar;
@@ -52,6 +54,9 @@ public class ModelBindingEditorScreen extends Screen {
 
     @Override
     protected void init() {
+        selectedCache = null;
+        selectedCache = currentCache();
+        if (selectedCache == null) selectedCache = SkinManager.loadSelectedSkinPreview();
         boneNames = currentBones();
         clipNames = currentClips();
         scrollableControls.clear();
@@ -112,6 +117,13 @@ public class ModelBindingEditorScreen extends Screen {
         addScrollableWidget(new CameraOffsetSlider(controlX, firstPersonY + ROW_HEIGHT * 3, CONTROL_WIDTH, 20, "Z",
                 () -> FBXPlayerModelsClient.options().firstPersonCameraOffsetZ,
                 value -> FBXPlayerModelsClient.options().firstPersonCameraOffsetZ = (float) value), firstPersonY + ROW_HEIGHT * 3);
+
+        addScrollableWidget(Button.builder(Component.translatable("gui.fbxplayermodels.shape_keys_open"), button ->
+                Minecraft.getInstance().gui.setScreen(new ShapeKeySettingsScreen(this, currentCache()))
+        ).bounds(controlX, shapeKeysButtonY(), CONTROL_WIDTH, 20).build(), shapeKeysButtonY());
+        addScrollableWidget(Button.builder(Component.translatable("gui.fbxplayermodels.voice_shape_open"), button ->
+                Minecraft.getInstance().gui.setScreen(new VoiceShapeSettingsScreen(this, currentCache()))
+        ).bounds(controlX, shapeKeysButtonY() + ROW_HEIGHT, CONTROL_WIDTH, 20).build(), shapeKeysButtonY() + ROW_HEIGHT);
     }
 
     @Override
@@ -308,6 +320,10 @@ public class ModelBindingEditorScreen extends Screen {
         drawScrollableText(context, "Camera X Offset", labelX, y + ROW_HEIGHT + 6, 0xFFFFFFFF, true);
         drawScrollableText(context, "Camera Y Offset", labelX, y + ROW_HEIGHT * 2 + 6, 0xFFFFFFFF, true);
         drawScrollableText(context, "Camera Z Offset", labelX, y + ROW_HEIGHT * 3 + 6, 0xFFFFFFFF, true);
+        drawScrollableText(context, Component.translatable("gui.fbxplayermodels.shape_keys_menu").getString(),
+                labelX, scrolledY(shapeKeysButtonY()) + 6, 0xFFFFFFFF, true);
+        drawScrollableText(context, Component.translatable("gui.fbxplayermodels.voice_shape_menu").getString(),
+                labelX, scrolledY(shapeKeysButtonY() + ROW_HEIGHT) + 6, 0xFFFFFFFF, true);
     }
 
     private int contentX() {
@@ -330,7 +346,7 @@ public class ModelBindingEditorScreen extends Screen {
         return Math.max(1, scrollBottom() - scrollTop());
     }
 
-    private int contentBottom() {
+    private int shapeKeysButtonY() {
         int y = 56;
         y += LogicalBodyPart.values().length * ROW_HEIGHT;
         y += SECTION_SPACING;
@@ -338,8 +354,12 @@ public class ModelBindingEditorScreen extends Screen {
         y += ROW_HEIGHT;
         y += 4 * ROW_HEIGHT;
         y += SECTION_SPACING * 2;
-        y += 3 * ROW_HEIGHT;
-        return y + 20;
+        y += 4 * ROW_HEIGHT;
+        return y + SECTION_SPACING * 2;
+    }
+
+    private int contentBottom() {
+        return shapeKeysButtonY() + ROW_HEIGHT + 20;
     }
 
     private int maxScrollOffset() {
@@ -483,7 +503,11 @@ public class ModelBindingEditorScreen extends Screen {
 
     private CacheSkin currentCache() {
         var uuid = Minecraft.getInstance().getUser().getProfileId();
-        return uuid == null ? null : SkinManager.skinCache.get(uuid.toString());
+        CacheSkin cache = uuid == null ? null : SkinManager.skinCache.get(uuid.toString());
+        var lookup = uuid == null ? null : SkinManager.skinLookup.get(uuid.toString());
+        var selected = FBXPlayerModelsClient.options().selectedSkin;
+        return cache != null && lookup != null && selected != null && Objects.equals(lookup.hash, selected.hash)
+                ? cache : selectedCache;
     }
 
     private static final class CameraOffsetSlider extends AbstractSliderButton {

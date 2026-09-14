@@ -10,6 +10,7 @@ import me.onethecrazy.util.FileUtil;
 import com.aksulightning.fbxplayermodels.ModEntities;
 import com.aksulightning.fbxplayermodels.client.ViewEntityRenderer;
 import me.onethecrazy.util.render.FirstPersonSelfModelRenderer;
+import me.onethecrazy.util.render.VoiceShapeClient;
 import me.onethecrazy.util.network.BackendInteractor;
 import me.onethecrazy.util.objects.save.FBXPlayerModelsSave;
 import net.fabricmc.api.ClientModInitializer;
@@ -60,6 +61,7 @@ public class FBXPlayerModelsClient implements ClientModInitializer {
 		// Queue a self skin load
 		queueLoadSelf();
 		FirstPersonSelfModelRenderer.register();
+		VoiceShapeClient.register();
 	}
 
 	private void registerEntityRenderers() {

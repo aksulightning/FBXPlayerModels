@@ -8,6 +8,7 @@ import me.onethecrazy.screens.ConfigScreen;
 import me.onethecrazy.util.model.animation.CustomModelPose;
 import me.onethecrazy.util.objects.CacheSkin;
 import me.onethecrazy.util.objects.Vertex;
+import me.onethecrazy.util.render.VoiceShapeClient;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.screen.TitleScreen;
@@ -93,7 +94,8 @@ public abstract class RenderMixin <T extends LivingEntity> implements LivingEnti
                         : CustomModelPose.HeadLookRotation.NONE;
                 CustomModelPose.LimbPose limbPose = CustomModelPose.computeLimbPose(renderedPlayer, tickDelta, animation);
                 fbx_player_models$logHeadLookDebug(animation, renderedPlayer, tickDelta, applyHeadLook && player != null);
-                vertices = cacheResult.skinnedModel.render(animation, seconds, headLookRotation, limbPose);
+                vertices = cacheResult.skinnedModel.render(animation, seconds, headLookRotation, limbPose,
+                        VoiceShapeClient.poseFor(uuid, cacheResult.skinnedModel));
             }
 
             // User didn't select a skin
