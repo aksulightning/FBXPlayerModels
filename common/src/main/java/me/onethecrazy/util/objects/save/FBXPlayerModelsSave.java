@@ -11,7 +11,7 @@ public class FBXPlayerModelsSave {
 
     public FBXPlayerModelsSave(){
         this.selectedSkin = new ClientSkin();
-        this.isEnabled = false;
+        this.isEnabled = true;
         this.renderSelfModelInFirstPerson = false;
         this.firstPersonCameraOffsetX = 0f;
         this.firstPersonCameraOffsetY = 0f;
