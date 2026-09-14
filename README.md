@@ -17,11 +17,11 @@ The rig names like Head, Chest, Right Arm, Left Arm, Right Leg, and Left Leg can
 
 If you’re using Blender, the export settings are mostly the default ones. See the settings below.
 
-<img alt="Image" src="https://raw.githubusercontent.com/aksulightning/FBXPlayerModels/refs/heads/template/screenshots/settings_1.png" />
-<img alt="Image" src="https://raw.githubusercontent.com/aksulightning/FBXPlayerModels/refs/heads/template/screenshots/settings_2.png" />
+<img alt="Image" src="https://raw.githubusercontent.com/aksulightning/FBXPlayerModels/refs/heads/new-template/screenshots/settings_1.png" />
+<img alt="Image" src="https://raw.githubusercontent.com/aksulightning/FBXPlayerModels/refs/heads/new-template/screenshots/settings_2.png" />
 
 After exporting, this character should appear correctly in the game.
 
-<img alt="Image" src="https://raw.githubusercontent.com/aksulightning/FBXPlayerModels/refs/heads/template/screenshots/screenshot_1.png" />
+<img alt="Image" src="https://raw.githubusercontent.com/aksulightning/FBXPlayerModels/refs/heads/new-template/screenshots/screenshot_1.png" />
 
 Have fun crafting your own models.
