@@ -1,10 +1,13 @@
 package me.onethecrazy.util.network;
 
+import com.aksulightning.fbxplayermodels.model.shape.ShapeKeySyncState;
 import me.onethecrazy.FBXPlayerModelsMod;
 import me.onethecrazy.SkinManager;
 import me.onethecrazy.network.ModelPackets;
 import me.onethecrazy.util.objects.LookupSkin;
+import me.onethecrazy.util.objects.save.ClientSkin;
 import me.onethecrazy.util.parsing.ParsingFormat;
+import me.onethecrazy.util.render.VoiceShapeClient;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -22,6 +25,9 @@ public final class BackendInteractor {
     private static final Map<String, List<CompletableFuture<Map<String, LookupSkin>>>> LOOKUP_WAITERS = new HashMap<>();
     private static final Map<String, List<Consumer<byte[]>>> MODEL_WAITERS = new HashMap<>();
     private static final Map<String, List<Consumer<byte[]>>> MOB_MODEL_WAITERS = new HashMap<>();
+    private static final long SHAPE_SYNC_INTERVAL_NANOS = 200_000_000L;
+    private static ShapeKeySyncState pendingShapeSettings;
+    private static long lastShapeSync;
     private static boolean initialized;
 
     private BackendInteractor() {
@@ -41,6 +47,10 @@ public final class BackendInteractor {
                 context.client().execute(() -> receiveMobModel(payload)));
         ClientPlayNetworking.registerGlobalReceiver(ModelPackets.UploadResultPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> showMessage(payload.message())));
+        ClientPlayNetworking.registerGlobalReceiver(ModelPackets.PlayerShapeSettingsPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> SkinManager.acceptServerShapeSettings(payload.uuid(), payload.settings())));
+        ClientPlayNetworking.registerGlobalReceiver(ModelPackets.PlayerVoiceLevelPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> VoiceShapeClient.acceptRemoteLevel(payload.uuid(), payload.level())));
     }
 
     public static CompletableFuture<Map<String, LookupSkin>> getSkinIDs(List<String> uuids) {
@@ -113,6 +123,28 @@ public final class BackendInteractor {
         }
         String formatName = format == null ? ParsingFormat.FBX.name() : format.name();
         ClientPlayNetworking.send(new ModelPackets.UploadModelPayload(fileName, formatName, data3d == null ? new byte[0] : data3d));
+    }
+
+    public static void syncShapeSettings(ClientSkin skin) {
+        if (skin == null) return;
+        pendingShapeSettings = ShapeKeySyncState.from(skin.hash, skin.defaultShapeKeyProfile(),
+                skin.voiceShapeSettings());
+        flushShapeSettings();
+    }
+
+    public static void flushShapeSettings() {
+        long now = System.nanoTime();
+        if (pendingShapeSettings == null || now - lastShapeSync < SHAPE_SYNC_INTERVAL_NANOS
+                || !canSend(ModelPackets.UpdateShapeSettingsPayload.TYPE)) return;
+        ClientPlayNetworking.send(new ModelPackets.UpdateShapeSettingsPayload(pendingShapeSettings));
+        pendingShapeSettings = null;
+        lastShapeSync = now;
+    }
+
+    public static void sendVoiceLevel(float level) {
+        if (!canSend(ModelPackets.VoiceLevelPayload.TYPE)) return;
+        ClientPlayNetworking.send(new ModelPackets.VoiceLevelPayload(
+                Float.isFinite(level) ? Math.max(0f, Math.min(1f, level)) : 0f));
     }
 
     public static CompletableFuture<String> getBannerTextAsync() {

@@ -1,5 +1,6 @@
 package me.onethecrazy;
 
+import com.aksulightning.fbxplayermodels.model.shape.ShapeKeySyncState;
 import com.aksulightning.platform.PlatformServices;
 import me.onethecrazy.util.*;
 import me.onethecrazy.network.ModelPackets;
@@ -28,6 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class SkinManager {
     public static Map<String, LookupSkin> skinLookup = Collections.synchronizedMap(new HashMap<>());
     public static Map<String, CacheSkin> skinCache = Collections.synchronizedMap(new HashMap<>());
+    public static Map<String, ShapeKeySyncState> shapeSettings = Collections.synchronizedMap(new HashMap<>());
 
     private static final AtomicInteger worldSkinGeneration = new AtomicInteger();
 
@@ -86,6 +88,7 @@ public class SkinManager {
             // Send update to server
             if (sessionUuid != null) {
                 BackendInteractor.setSkinData(sessionUuid, name, data3D, format);
+                syncSelectedShapeSettings();
             }
         }
         catch(Exception ex){
@@ -139,6 +142,7 @@ public class SkinManager {
             byte[] data3D = FileUtil.read3DDataFile(dataPath);
             String fileName = selectedSkin.name == null || selectedSkin.name.isBlank() ? selectedSkin.hash + ".fbx" : selectedSkin.name;
             BackendInteractor.setSkinData(sessionUuid, fileName, data3D, selectedSkin.format, quietWhenUnsupported);
+            syncSelectedShapeSettings();
         } catch (Exception ex) {
             FBXPlayerModelsMod.LOGGER.info("Ran into error while uploading selected skin:", ex);
         }
@@ -339,6 +343,7 @@ public class SkinManager {
 
         skinLookup.clear();
         skinCache.clear();
+        shapeSettings.clear();
 
         if (selfUuid != null) {
             if (selfLookup != null) {
@@ -361,6 +366,11 @@ public class SkinManager {
                 && Objects.equals(uuid, PlatformServices.client().currentSessionUuid())
                 && Objects.equals(lookup.hash, selected.hash)) {
             skinnedModel = skinnedModel.withShapeKeyProfile(selected.defaultShapeKeyProfile());
+        } else if (skinnedModel != null && lookup != null) {
+            ShapeKeySyncState settings = shapeSettings.get(uuid);
+            if (settings != null && Objects.equals(lookup.hash, settings.modelHash)) {
+                skinnedModel = skinnedModel.withShapeKeyProfile(settings.defaultProfile());
+            }
         }
         skinCache.put(uuid, new CacheSkin(skinnedModel, format));
     }
@@ -372,12 +382,28 @@ public class SkinManager {
     public static void acceptServerLookup(String uuid, LookupSkin lookupSkin) {
         putLookupEntry(uuid, lookupSkin);
         if (lookupSkin == null || lookupSkin.hash == null || lookupSkin.hash.isBlank() || lookupSkin.format == null) {
+            shapeSettings.remove(uuid);
             putCacheEntry(uuid, (List<Vertex>) null, null);
             return;
         }
 
         skinCache.remove(uuid);
         loadSkinIntoCache(uuid, worldSkinGeneration.get());
+    }
+
+    public static void acceptServerShapeSettings(String uuid, ShapeKeySyncState received) {
+        if (uuid == null || received == null) return;
+        ShapeKeySyncState settings = received.snapshot();
+        if (settings.modelHash.isBlank()) shapeSettings.remove(uuid);
+        else shapeSettings.put(uuid, settings);
+
+        if (Objects.equals(uuid, PlatformServices.client().currentSessionUuid())) return;
+        LookupSkin lookup = skinLookup.get(uuid);
+        CacheSkin cache = skinCache.get(uuid);
+        if (lookup != null && cache != null && cache.skinnedModel != null
+                && Objects.equals(lookup.hash, settings.modelHash)) {
+            skinCache.put(uuid, new CacheSkin(cache.skinnedModel.withShapeKeyProfile(settings.defaultProfile()), cache.format));
+        }
     }
 
     public static void saveCurrentBinding() {
@@ -395,6 +421,19 @@ public class SkinManager {
             skinCache.put(uuid, new CacheSkin(cache.skinnedModel.withShapeKeyProfile(options.selectedSkin.defaultShapeKeyProfile()), cache.format));
         }
         FileUtil.writeSave(options);
+        syncSelectedShapeSettings();
+    }
+
+    public static void saveVoiceShapeSettings() {
+        FileUtil.writeSave(FBXPlayerModelsClient.options());
+        syncSelectedShapeSettings();
+    }
+
+    public static void syncSelectedShapeSettings() {
+        var options = FBXPlayerModelsClient.options();
+        if (options != null && options.selectedSkin != null) {
+            BackendInteractor.syncShapeSettings(options.selectedSkin);
+        }
     }
 
     private static SkinnedModel withSavedAnimationSettings(SkinnedModel model, ClientSkin selectedSkin) {

@@ -1,5 +1,7 @@
 package me.onethecrazy.network;
 
+import com.aksulightning.fbxplayermodels.model.shape.ShapeKeySyncState;
+import com.aksulightning.fbxplayermodels.voice.VoiceShapeSettings;
 import me.onethecrazy.FBXPlayerModels;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -14,6 +16,7 @@ import java.util.Map;
 public final class ModelPackets {
     public static final int MODEL_SIZE_LIMIT_BYTES = 2 * 1024 * 1024;
     public static final int MAX_MODEL_BYTES = MODEL_SIZE_LIMIT_BYTES - 1;
+    public static final int MAX_SHAPE_SETTINGS_BYTES = 512 * 1024;
 
     private ModelPackets() {
     }
@@ -126,6 +129,58 @@ public final class ModelPackets {
         }
     }
 
+    public record UpdateShapeSettingsPayload(ShapeKeySyncState settings) implements CustomPacketPayload {
+        public static final Type<UpdateShapeSettingsPayload> TYPE = new Type<>(id("update_shape_settings"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, UpdateShapeSettingsPayload> CODEC = StreamCodec.of(
+                ModelPackets::writeUpdateShapeSettings,
+                ModelPackets::readUpdateShapeSettings
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record PlayerShapeSettingsPayload(String uuid, ShapeKeySyncState settings) implements CustomPacketPayload {
+        public static final Type<PlayerShapeSettingsPayload> TYPE = new Type<>(id("player_shape_settings"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, PlayerShapeSettingsPayload> CODEC = StreamCodec.of(
+                ModelPackets::writePlayerShapeSettings,
+                ModelPackets::readPlayerShapeSettings
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record VoiceLevelPayload(float level) implements CustomPacketPayload {
+        public static final Type<VoiceLevelPayload> TYPE = new Type<>(id("voice_level"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, VoiceLevelPayload> CODEC = StreamCodec.of(
+                ModelPackets::writeVoiceLevel,
+                ModelPackets::readVoiceLevel
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public record PlayerVoiceLevelPayload(String uuid, float level) implements CustomPacketPayload {
+        public static final Type<PlayerVoiceLevelPayload> TYPE = new Type<>(id("player_voice_level"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, PlayerVoiceLevelPayload> CODEC = StreamCodec.of(
+                ModelPackets::writePlayerVoiceLevel,
+                ModelPackets::readPlayerVoiceLevel
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     public record ModelLookup(String hash, String format) {
     }
 
@@ -224,5 +279,108 @@ public final class ModelPackets {
     private static void writeUploadResult(RegistryFriendlyByteBuf buf, UploadResultPayload payload) {
         buf.writeBoolean(payload.success());
         buf.writeUtf(payload.message(), 256);
+    }
+
+    private static UpdateShapeSettingsPayload readUpdateShapeSettings(RegistryFriendlyByteBuf buf) {
+        return new UpdateShapeSettingsPayload(readShapeSettings(buf));
+    }
+
+    private static void writeUpdateShapeSettings(RegistryFriendlyByteBuf buf, UpdateShapeSettingsPayload payload) {
+        writeShapeSettings(buf, payload.settings());
+    }
+
+    private static PlayerShapeSettingsPayload readPlayerShapeSettings(RegistryFriendlyByteBuf buf) {
+        return new PlayerShapeSettingsPayload(buf.readUtf(64), readShapeSettings(buf));
+    }
+
+    private static void writePlayerShapeSettings(RegistryFriendlyByteBuf buf, PlayerShapeSettingsPayload payload) {
+        buf.writeUtf(payload.uuid(), 64);
+        writeShapeSettings(buf, payload.settings());
+    }
+
+    private static VoiceLevelPayload readVoiceLevel(RegistryFriendlyByteBuf buf) {
+        return new VoiceLevelPayload(buf.readFloat());
+    }
+
+    private static void writeVoiceLevel(RegistryFriendlyByteBuf buf, VoiceLevelPayload payload) {
+        buf.writeFloat(payload.level());
+    }
+
+    private static PlayerVoiceLevelPayload readPlayerVoiceLevel(RegistryFriendlyByteBuf buf) {
+        return new PlayerVoiceLevelPayload(buf.readUtf(64), buf.readFloat());
+    }
+
+    private static void writePlayerVoiceLevel(RegistryFriendlyByteBuf buf, PlayerVoiceLevelPayload payload) {
+        buf.writeUtf(payload.uuid(), 64);
+        buf.writeFloat(payload.level());
+    }
+
+    private static ShapeKeySyncState readShapeSettings(RegistryFriendlyByteBuf buf) {
+        String modelHash = buf.readUtf(ShapeKeySyncState.MAX_MODEL_HASH_LENGTH);
+        int count = buf.readVarInt();
+        if (count < 0 || count > ShapeKeySyncState.MAX_WEIGHTS) {
+            throw new IllegalArgumentException("Invalid shape key weight count");
+        }
+        Map<String, Float> weights = new HashMap<>();
+        for (int i = 0; i < count; i++) {
+            weights.put(buf.readUtf(ShapeKeySyncState.MAX_TARGET_ID_LENGTH), buf.readFloat());
+        }
+        return new ShapeKeySyncState(modelHash, weights, readVoiceSettings(buf)).snapshot();
+    }
+
+    private static void writeShapeSettings(RegistryFriendlyByteBuf buf, ShapeKeySyncState settings) {
+        ShapeKeySyncState safe = settings == null ? ShapeKeySyncState.empty("") : settings.snapshot();
+        buf.writeUtf(safe.modelHash, ShapeKeySyncState.MAX_MODEL_HASH_LENGTH);
+        buf.writeVarInt(safe.defaultWeights.size());
+        for (Map.Entry<String, Float> entry : safe.defaultWeights.entrySet()) {
+            buf.writeUtf(entry.getKey(), ShapeKeySyncState.MAX_TARGET_ID_LENGTH);
+            buf.writeFloat(entry.getValue());
+        }
+        writeVoiceSettings(buf, safe.voiceShapeSettings);
+    }
+
+    private static VoiceShapeSettings readVoiceSettings(RegistryFriendlyByteBuf buf) {
+        VoiceShapeSettings settings = new VoiceShapeSettings();
+        settings.target = readEnum(buf, VoiceShapeSettings.Target.values(), "voice target");
+        settings.name = buf.readUtf(ShapeKeySyncState.MAX_TARGET_NAME_LENGTH);
+        settings.shapeKeyId = buf.readUtf(ShapeKeySyncState.MAX_TARGET_ID_LENGTH);
+        settings.input = readEnum(buf, VoiceShapeSettings.Input.values(), "voice input");
+        settings.response = readEnum(buf, VoiceShapeSettings.Response.values(), "voice response");
+        settings.startX = buf.readFloat();
+        settings.startY = buf.readFloat();
+        settings.startZ = buf.readFloat();
+        settings.endX = buf.readFloat();
+        settings.endY = buf.readFloat();
+        settings.endZ = buf.readFloat();
+        settings.startWeight = buf.readFloat();
+        settings.endWeight = buf.readFloat();
+        settings.sensitivity = buf.readFloat();
+        settings.threshold = buf.readFloat();
+        return settings.snapshot();
+    }
+
+    private static void writeVoiceSettings(RegistryFriendlyByteBuf buf, VoiceShapeSettings settings) {
+        VoiceShapeSettings safe = settings == null ? new VoiceShapeSettings() : settings.snapshot();
+        buf.writeVarInt(safe.target().ordinal());
+        buf.writeUtf(safe.name, ShapeKeySyncState.MAX_TARGET_NAME_LENGTH);
+        buf.writeUtf(safe.shapeKeyId, ShapeKeySyncState.MAX_TARGET_ID_LENGTH);
+        buf.writeVarInt(safe.input().ordinal());
+        buf.writeVarInt(safe.response().ordinal());
+        buf.writeFloat(safe.startX);
+        buf.writeFloat(safe.startY);
+        buf.writeFloat(safe.startZ);
+        buf.writeFloat(safe.endX);
+        buf.writeFloat(safe.endY);
+        buf.writeFloat(safe.endZ);
+        buf.writeFloat(safe.startWeight);
+        buf.writeFloat(safe.endWeight);
+        buf.writeFloat(safe.sensitivity);
+        buf.writeFloat(safe.threshold);
+    }
+
+    private static <T> T readEnum(RegistryFriendlyByteBuf buf, T[] values, String label) {
+        int index = buf.readVarInt();
+        if (index < 0 || index >= values.length) throw new IllegalArgumentException("Invalid " + label);
+        return values[index];
     }
 }
