@@ -3,7 +3,6 @@ package me.onethecrazy.screens.editor;
 import com.aksulightning.fbxplayermodels.voice.VoiceAudioInput;
 import com.aksulightning.fbxplayermodels.voice.VoiceShapeSettings;
 import com.aksulightning.fbxplayermodels.voice.VoiceShapePose;
-import me.onethecrazy.util.FileUtil;
 import me.onethecrazy.util.render.VoiceShapeClient;
 import net.minecraft.client.gui.components.AbstractWidget;
 import java.util.function.DoubleConsumer;
@@ -188,7 +187,7 @@ public class VoiceShapeSettingsScreen extends Screen {
     }
 
     private void saveSettings() {
-        FileUtil.writeSave(FBXPlayerModelsClient.options());
+        SkinManager.saveVoiceShapeSettings();
         configureInput();
         lastPreviewPose = null;
     }

@@ -1,6 +1,8 @@
 package me.onethecrazy.server;
 
-import com.mojang.authlib.GameProfile;
+import com.aksulightning.fbxplayermodels.model.shape.ShapeKeySyncState;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import me.onethecrazy.FBXPlayerModelsMod;
 import me.onethecrazy.network.ModelPackets;
 import me.onethecrazy.util.parsing.ParsingFormat;
@@ -9,6 +11,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.WorldSavePath;
 
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
@@ -29,6 +32,10 @@ public final class ServerModelStore {
     private static final Pattern SAFE_HASH = Pattern.compile("[a-f0-9]{64}");
     private static final String PERMISSIONS_FILE = "upload-permissions.txt";
     private static final String INDEX_FILE = "model-index.tsv";
+    private static final String SHAPE_SETTINGS_FILE = "shape-settings.json";
+    private static final long MAX_SHAPE_SETTINGS_FILE_BYTES = 2L * 1024L * 1024L;
+    private static final Gson GSON = new Gson();
+    private static final Type SHAPE_SETTINGS_TYPE = new TypeToken<Map<String, ShapeKeySyncState>>() { }.getType();
 
     private final MinecraftServer server;
     private final Path root;
@@ -36,8 +43,10 @@ public final class ServerModelStore {
     private final Path mobSkinsDir;
     private final Path permissionsPath;
     private final Path indexPath;
+    private final Path shapeSettingsPath;
     private final Set<String> uploadPermissionNames = new HashSet<>();
     private final Map<String, StoredModel> modelsByPlayer = new HashMap<>();
+    private final Map<String, ShapeKeySyncState> shapeSettingsByPlayer = new HashMap<>();
 
     public ServerModelStore(MinecraftServer server) {
         this.server = server;
@@ -46,6 +55,7 @@ public final class ServerModelStore {
         this.mobSkinsDir = root.resolve("mobskins").normalize();
         this.permissionsPath = root.resolve(PERMISSIONS_FILE).normalize();
         this.indexPath = root.resolve(INDEX_FILE).normalize();
+        this.shapeSettingsPath = root.resolve(SHAPE_SETTINGS_FILE).normalize();
         load();
     }
 
@@ -70,6 +80,34 @@ public final class ServerModelStore {
             return Optional.empty();
         }
         return Optional.ofNullable(modelsByPlayer.get(uuid));
+    }
+
+    public synchronized ShapeKeySyncState shapeSettings(String uuid) {
+        StoredModel model = modelsByPlayer.get(uuid);
+        if (model == null) return ShapeKeySyncState.empty("");
+        ShapeKeySyncState settings = shapeSettingsByPlayer.get(uuid);
+        if (settings == null || !model.hash().equals(settings.modelHash)) {
+            return ShapeKeySyncState.empty(model.hash());
+        }
+        return settings.snapshot();
+    }
+
+    public synchronized Optional<ShapeKeySyncState> updateShapeSettings(ServerPlayerEntity player,
+                                                                         ShapeKeySyncState requested) {
+        String uuid = player.getUuidAsString();
+        StoredModel model = modelsByPlayer.get(uuid);
+        ShapeKeySyncState settings = requested == null ? ShapeKeySyncState.empty("") : requested.snapshot();
+        if (model == null || !model.hash().equals(settings.modelHash)) return Optional.empty();
+        ShapeKeySyncState previous = shapeSettingsByPlayer.put(uuid, settings);
+        try {
+            saveShapeSettings();
+            return Optional.of(settings);
+        } catch (IOException | RuntimeException e) {
+            if (previous == null) shapeSettingsByPlayer.remove(uuid);
+            else shapeSettingsByPlayer.put(uuid, previous);
+            FBXPlayerModelsMod.LOGGER.error("Server-side failure while saving shape key settings", e);
+            return Optional.empty();
+        }
     }
 
     public synchronized Optional<byte[]> readModel(String hash, String format) throws IOException {
@@ -132,9 +170,14 @@ public final class ServerModelStore {
             Files.write(path, data);
 
             String uuid = player.getUuidAsString();
+            StoredModel previous = modelsByPlayer.get(uuid);
             StoredModel stored = new StoredModel(uuid, hash, format.get().name(), fileName);
             modelsByPlayer.put(uuid, stored);
+            if (previous == null || !previous.hash().equals(hash)) {
+                shapeSettingsByPlayer.put(uuid, ShapeKeySyncState.empty(hash));
+            }
             saveIndex();
+            saveShapeSettings();
             return UploadSaveResult.saved(stored, "Upload allowed: saved successfully.");
         } catch (IOException | RuntimeException e) {
             FBXPlayerModelsMod.LOGGER.error("Server-side failure while saving uploaded model", e);
@@ -146,7 +189,9 @@ public final class ServerModelStore {
         try {
             String uuid = player.getUuidAsString();
             modelsByPlayer.remove(uuid);
+            shapeSettingsByPlayer.remove(uuid);
             saveIndex();
+            saveShapeSettings();
             return UploadSaveResult.saved(new StoredModel(uuid, "", "", ""), "Saved successfully: selected model cleared.");
         } catch (IOException e) {
             FBXPlayerModelsMod.LOGGER.error("Server-side failure while clearing uploaded model", e);
@@ -160,7 +205,8 @@ public final class ServerModelStore {
             Files.createDirectories(mobSkinsDir);
             loadPermissions();
             loadIndex();
-        } catch (IOException e) {
+            loadShapeSettings();
+        } catch (IOException | RuntimeException e) {
             FBXPlayerModelsMod.LOGGER.error("Server-side failure while loading model store", e);
         }
     }
@@ -206,6 +252,42 @@ public final class ServerModelStore {
                     .append(model.fileName()).append('\n');
         }
         Files.writeString(indexPath, builder.toString(), StandardCharsets.UTF_8);
+    }
+
+    private void loadShapeSettings() throws IOException {
+        shapeSettingsByPlayer.clear();
+        if (!Files.exists(shapeSettingsPath)) return;
+        if (Files.size(shapeSettingsPath) > MAX_SHAPE_SETTINGS_FILE_BYTES) {
+            FBXPlayerModelsMod.LOGGER.warn("Ignoring oversized server shape settings file: {}", shapeSettingsPath);
+            return;
+        }
+        Map<String, ShapeKeySyncState> loaded = GSON.fromJson(
+                Files.readString(shapeSettingsPath, StandardCharsets.UTF_8), SHAPE_SETTINGS_TYPE);
+        if (loaded == null) return;
+        for (Map.Entry<String, ShapeKeySyncState> entry : loaded.entrySet()) {
+            StoredModel model = modelsByPlayer.get(entry.getKey());
+            ShapeKeySyncState settings = entry.getValue() == null ? null : entry.getValue().snapshot();
+            if (model != null && settings != null && model.hash().equals(settings.modelHash)) {
+                shapeSettingsByPlayer.put(entry.getKey(), settings);
+            }
+        }
+    }
+
+    private void saveShapeSettings() throws IOException {
+        Files.createDirectories(root);
+        Map<String, ShapeKeySyncState> saved = new HashMap<>();
+        for (Map.Entry<String, ShapeKeySyncState> entry : shapeSettingsByPlayer.entrySet()) {
+            StoredModel model = modelsByPlayer.get(entry.getKey());
+            ShapeKeySyncState settings = entry.getValue() == null ? null : entry.getValue().snapshot();
+            if (model != null && settings != null && model.hash().equals(settings.modelHash)) {
+                saved.put(entry.getKey(), settings);
+            }
+        }
+        String json = GSON.toJson(saved, SHAPE_SETTINGS_TYPE);
+        if (json.getBytes(StandardCharsets.UTF_8).length > MAX_SHAPE_SETTINGS_FILE_BYTES) {
+            throw new IOException("Server shape settings exceed the persistence size limit");
+        }
+        Files.writeString(shapeSettingsPath, json, StandardCharsets.UTF_8);
     }
 
     private Path resolveModelPath(String hash, ParsingFormat format) {
