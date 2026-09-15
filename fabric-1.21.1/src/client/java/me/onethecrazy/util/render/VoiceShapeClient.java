@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** Samples local voice input and resolves server-relayed voice poses for every rendered player. */
+/** Samples local input and resolves server-relayed shape-key or bone voice poses for every rendered player. */
 public final class VoiceShapeClient {
     private static final boolean VOICE_CHAT_INSTALLED = FabricLoader.getInstance().isModLoaded("voicechat");
     private static final long VOICE_HEARTBEAT_NANOS = 250_000_000L;

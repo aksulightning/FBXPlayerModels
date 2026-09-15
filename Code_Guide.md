@@ -221,6 +221,12 @@ For live Voice Shape, the source client sends only a finite scalar in `[0, 1]`, 
 
 The four new payload directions are client-to-server settings update, server-to-client player settings, client-to-server voice level, and server-to-client identified voice level. Their version-specific codecs and registrations live in each target's `ModelPackets` and `ServerModelNetworking`; `BackendInteractor` owns client send/receive integration, and `VoiceShapeClient` resolves local versus remote pose sources. Servers without these payloads retain the existing local shape-key and Voice Shape behavior but cannot expose those choices to other players.
 
+### Voice Shape Bone synchronization
+
+Bone is a first-class synchronized Voice Shape target, not a shape-key fallback. A Bone mapping transmits its imported bone name and all start/end X, Y, and Z rotation endpoints after clamping each endpoint to ±180°. Target-specific sanitization removes any stale shape-key id from a Bone snapshot; None removes both target identifiers, while an invalid or blank Bone name disables the synchronized mapping. The server persists and rebroadcasts the mapping with the same model-hash and authenticated-player protections used for shape keys.
+
+For a remote player, `VoiceShapeClient.poseFor()` verifies that the synchronized bone name exists in that player's parsed model, evaluates the six endpoints from the relayed scalar, and produces the same `VoiceShapePose` used locally. `SkinnedModel` adds the resulting model-space XYZ rotation around the selected joint's current posed position after clip, head-look, and live-limb evaluation. Recursive global-transform evaluation propagates it to descendants. Bone Voice Shape therefore remains visible to other tracking players and continues to work when ordinary animation playback is disabled, while a missing bone safely produces no voice pose.
+
 Validation for server shape synchronization uses only the required four compilation tasks. `bash ./gradlew :fabric-1.21.1:compileJava :fabric-1.21.1:compileClientJava :fabric-26.2:compileJava :fabric-26.2:compileClientJava` passed for both server and client source sets with JDK 26. The default Java 8 could not launch Gradle, and Gradle required its existing cache outside the workspace sandbox. No unrelated tests, formatters, or build tasks were run. Multiplayer packet exchange, server restart persistence, microphone capture, and visual remote deformation still require in-game verification.
 
 ## FBX view entity

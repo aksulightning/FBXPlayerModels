@@ -5,7 +5,7 @@ import com.aksulightning.fbxplayermodels.voice.VoiceShapeSettings;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** Bounded, model-specific appearance state that is safe to persist and relay through a server. */
+/** Bounded, model-specific Default and Voice Shape state that is safe to persist and relay through a server. */
 public final class ShapeKeySyncState {
     public static final int MAX_WEIGHTS = 256;
     public static final int MAX_MODEL_HASH_LENGTH = 80;
@@ -55,11 +55,22 @@ public final class ShapeKeySyncState {
                 ? new VoiceShapeSettings() : voiceShapeSettings.snapshot();
         safeVoice.name = bounded(safeVoice.name, MAX_TARGET_NAME_LENGTH);
         safeVoice.shapeKeyId = bounded(safeVoice.shapeKeyId, MAX_TARGET_ID_LENGTH);
-        if (safeVoice.name.isBlank()
-                || safeVoice.target() == VoiceShapeSettings.Target.SHAPE_KEY && safeVoice.shapeKeyId.isBlank()) {
-            safeVoice.target = VoiceShapeSettings.Target.NONE;
-            safeVoice.name = "";
-            safeVoice.shapeKeyId = "";
+        switch (safeVoice.target()) {
+            case NONE -> {
+                safeVoice.name = "";
+                safeVoice.shapeKeyId = "";
+            }
+            case BONE -> {
+                safeVoice.shapeKeyId = "";
+                if (safeVoice.name.isBlank()) safeVoice.target = VoiceShapeSettings.Target.NONE;
+            }
+            case SHAPE_KEY -> {
+                if (safeVoice.name.isBlank() || safeVoice.shapeKeyId.isBlank()) {
+                    safeVoice.target = VoiceShapeSettings.Target.NONE;
+                    safeVoice.name = "";
+                    safeVoice.shapeKeyId = "";
+                }
+            }
         }
         return new ShapeKeySyncState(safeHash, Map.copyOf(safeWeights), safeVoice);
     }
