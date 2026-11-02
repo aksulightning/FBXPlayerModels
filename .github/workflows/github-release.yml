@@ -1,0 +1,87 @@
+name: GitHub release
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Versions to build and release
+        type: choice
+        default: all
+        options:
+          - all
+          - fabric-1.21.1
+          - fabric-1.21.1-client
+          - fabric-26.2
+          - forge-1.21.1
+          - fabric-b1.7.3
+      release_tag:
+        description: New GitHub tag, for example v2.0.0-lan
+        type: string
+        required: true
+      channel:
+        description: Release channel (alpha and beta create prereleases)
+        type: choice
+        default: alpha
+        options:
+          - alpha
+          - beta
+          - release
+      notes:
+        description: Release notes
+        type: string
+        default: Single-player and LAN release with optional client-only variants.
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: fbx-manual-github-release
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate release tag
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: python3 .github/scripts/release_publish.py github-config
+
+  build:
+    needs: validate
+    uses: ./.github/workflows/nightly.yml
+    with:
+      target: ${{ inputs.target }}
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Download built production jars
+        uses: actions/download-artifact@v5
+        with:
+          pattern: fbx-player-models-*
+          path: .release/
+      - name: Verify artifacts and create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TARGET: ${{ inputs.target }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
+          RELEASE_NOTES: ${{ inputs.notes }}
+          BUILD_SOURCE_BRANCH: ${{ github.ref_name }}
+          BUILD_COMMIT: ${{ github.sha }}
+          BUILD_RUN_ID: ${{ github.run_id }}
+        run: python3 .github/scripts/release_publish.py github "$RELEASE_TARGET"

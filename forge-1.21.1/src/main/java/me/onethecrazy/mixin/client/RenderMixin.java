@@ -5,6 +5,7 @@ import me.onethecrazy.util.network.LanSession;
 import me.onethecrazy.FBXPlayerModelsClient;
 import me.onethecrazy.FBXPlayerModelsMod;
 import me.onethecrazy.SkinManager;
+import me.onethecrazy.util.render.VoiceShapeClient;
 import me.onethecrazy.util.LivingEntityRenderExtension;
 import me.onethecrazy.util.model.animation.CustomModelPose;
 import me.onethecrazy.util.objects.CacheSkin;
@@ -48,7 +49,7 @@ public abstract class RenderMixin <T extends LivingEntity> implements LivingEnti
     private void onPlayerRender(T livingEntity, float yaw, float tickDelta, PoseStack matrixStack, MultiBufferSource vertexConsumerProvider, int light, CallbackInfo ci){
         // We only want to hook the player rendering
         if(livingEntity instanceof AbstractClientPlayer renderedPlayer){
-            if (!LanSession.isRenderingAllowed() || !FBXPlayerModelsClient.options().isEnabled || renderedPlayer != Minecraft.getInstance().player)
+            if (!LanSession.isRenderingAllowed() || !FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled() || renderedPlayer != Minecraft.getInstance().player)
                 return;
 
             player = renderedPlayer;
@@ -68,7 +69,7 @@ public abstract class RenderMixin <T extends LivingEntity> implements LivingEnti
                         : CustomModelPose.HeadLookRotation.NONE;
                 CustomModelPose.LimbPose limbPose = fbx_player_models$computeMinecraftLimbPose(renderedPlayer, tickDelta, animation);
                 fbx_player_models$logHeadLookDebug(animation, renderedPlayer, tickDelta, idle && player != null);
-                vertices = cacheResult.skinnedModel.render(animation, seconds, headLookRotation, limbPose);
+                vertices = cacheResult.skinnedModel.render(animation, seconds, headLookRotation, limbPose, VoiceShapeClient.poseFor(cacheResult.skinnedModel));
             }
 
             // User didn't select a skin

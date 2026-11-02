@@ -4,22 +4,32 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: Target to build from modrinth-last-update
+        description: Target to build from the branch selected in Run workflow
         type: choice
         default: all
         options:
           - all
           - fabric-1.21.1
+          - fabric-1.21.1-client
           - fabric-26.2
           - forge-1.21.1
           - fabric-b1.7.3
 
+  workflow_call:
+    inputs:
+      target:
+        description: Target module or all
+        type: string
+        required: true
+
 permissions:
   contents: read
 
+env:
+  BUILD_SOURCE_BRANCH: ${{ github.ref_name }}
+
 jobs:
   prepare:
-    if: github.ref == 'refs/heads/modrinth-last-update'
     runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.targets.outputs.matrix }}
@@ -58,16 +68,21 @@ jobs:
         with:
           java-version: ${{ matrix.java }}
           distribution: microsoft
-      - name: Package production jar
+      - name: Package production jar and run port tests
         env:
           BUILD_TASK: ${{ matrix.task }}
+          RELEASE_TARGET: ${{ matrix.target }}
           JAVA17_PATH: ${{ steps.java17.outputs.path }}
         run: |
           args=()
           if [[ -n "$JAVA17_PATH" ]]; then
             args+=("-Dorg.gradle.java.installations.paths=$JAVA17_PATH")
           fi
-          bash ./gradlew "$BUILD_TASK" "${args[@]}"
+          tasks=("$BUILD_TASK")
+          if [[ "$RELEASE_TARGET" == forge-1.21.1 || "$RELEASE_TARGET" == fabric-b1.7.3 || "$RELEASE_TARGET" == fabric-1.21.1-client ]]; then
+            tasks+=(":$RELEASE_TARGET:test")
+          fi
+          bash ./gradlew "${tasks[@]}" "${args[@]}"
       - name: Record artifact provenance
         env:
           RELEASE_TARGET: ${{ matrix.target }}

@@ -19,6 +19,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 
 public final class FBXPlayerModelsClient {
+    public static final String DISPLAY_NAME = "FBX Player Models (Client Only)";
     @Nullable private static FBXPlayerModelsSave options;
 
     public static FBXPlayerModelsSave options() {
@@ -33,6 +34,7 @@ public final class FBXPlayerModelsClient {
         if (options == null) {
             options = new FBXPlayerModelsSave();
         }
+        if (options.selectedSkin == null) options.selectedSkin = new me.onethecrazy.util.objects.save.ClientSkin();
         return options;
     }
 
@@ -43,13 +45,15 @@ public final class FBXPlayerModelsClient {
                 new ForgePlatformClient(),
                 new ForgePlatformEvents()
         );
-        FBXPlayerModelsMod.LOGGER.info("Initializing {}", FBXPlayerModels.DISPLAY_NAME);
+        FBXPlayerModelsMod.LOGGER.info("Initializing {}", FBXPlayerModelsClient.DISPLAY_NAME);
         FileUtil.createPaths();
         me.onethecrazy.util.network.LanSession.initialize();
         MinecraftForge.EVENT_BUS.addListener(Commands::register);
         context.registerExtensionPoint(ConfigScreenHandler.ConfigScreenFactory.class,
                 () -> new ConfigScreenHandler.ConfigScreenFactory(ConfigScreen::create));
         PlatformServices.events().registerClientStarted(SkinManager::loadSelfSkin);
+        PlatformServices.events().registerClientJoined(SkinManager::loadSelfSkin);
+        me.onethecrazy.util.render.VoiceShapeClient.register();
         FirstPersonSelfModelRenderer.register();
         TitleScreenPreview.register();
     }

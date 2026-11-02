@@ -1,6 +1,6 @@
 package me.onethecrazy.screens;
 
-import me.onethecrazy.FBXPlayerModels;
+import me.onethecrazy.util.FileUtil;
 import me.onethecrazy.FBXPlayerModelsClient;
 import me.onethecrazy.SkinManager;
 import me.onethecrazy.screens.editor.ModelBindingEditorScreen;
@@ -43,7 +43,7 @@ public class ConfigScreen extends Screen {
     }
 
     public ConfigScreen(Screen parent) {
-        super(Component.nullToEmpty(FBXPlayerModels.DISPLAY_NAME));
+        super(Component.nullToEmpty(FBXPlayerModelsClient.DISPLAY_NAME));
         this.parent = parent;
     }
 
@@ -67,7 +67,8 @@ public class ConfigScreen extends Screen {
                     .bounds(getContentOriginX(), selectSkinButton.getY() + BUTTON_HEIGHT + BUTTON_SPACING, getHalfButtonWidth(), BUTTON_HEIGHT).build();
 
         toggleButton = Button.builder(Component.empty(), (button) -> {
-            FBXPlayerModelsClient.options().isEnabled = !FBXPlayerModelsClient.options().isEnabled;
+            FBXPlayerModelsClient.options().setFbxPlayerModelsEnabled(!FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled());
+            FileUtil.writeSave(FBXPlayerModelsClient.options());
 
             // Update Text
             updateEnabledButtonText();
@@ -110,7 +111,7 @@ public class ConfigScreen extends Screen {
             context.drawString(font, trimmed(cacheSkin.debugStatus(), getContentWidth()), getContentOriginX(), statusY, 0xFFFFFFFF, true);
 
         // Render Mod Title
-        String title = FBXPlayerModels.DISPLAY_NAME;
+        String title = FBXPlayerModelsClient.DISPLAY_NAME;
         context.drawString(font, title, this.width / 2 - font.width(title) / 2, MARGIN, 0xFFFFFFFF, true);
     }
 
@@ -245,7 +246,7 @@ public class ConfigScreen extends Screen {
     }
 
     @Unique private void updateEnabledButtonText(){
-        Component text = FBXPlayerModelsClient.options().isEnabled ? Component.translatable("gui.fbxplayermodels.mod_enabled") : Component.translatable("gui.fbxplayermodels.mod_disabled");
+        Component text = FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled() ? Component.translatable("gui.fbxplayermodels.mod_enabled") : Component.translatable("gui.fbxplayermodels.mod_disabled");
 
         toggleButton.setMessage(text);
     }

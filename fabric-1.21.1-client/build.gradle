@@ -1,0 +1,141 @@
+plugins {
+	id 'fabric-loom' version "${loom_version}"
+	id 'maven-publish'
+}
+
+version = project.fabric_1211_client_mod_version
+group = rootProject.maven_group
+
+base {
+	archivesName = "${rootProject.archives_base_name}-fabric-1.21.1-client"
+}
+
+repositories {
+	maven {
+		url = "https://pkgs.dev.azure.com/djtheredstoner/DevAuth/_packaging/public/maven/v1"
+		content {
+			includeGroup("me.djtheredstoner")
+		}
+	}
+
+	maven { url = "https://api.modrinth.com/maven" }
+}
+
+loom {
+	splitEnvironmentSourceSets()
+}
+
+// Share the full target's importer, deformation, animation, and feature editors.
+// Server payloads, remote-model state, and entity registration are deliberately absent.
+def localModelFeatures = objects.sourceDirectorySet('localModelFeatures', 'Shared Fabric 1.21.1 model features')
+localModelFeatures.srcDir(rootProject.file('fabric-1.21.1/src/client/java'))
+localModelFeatures.include(
+	'me/onethecrazy/util/parsing/**',
+	'me/onethecrazy/util/model/**',
+	'me/onethecrazy/util/ModelNormalizer.java',
+	'me/onethecrazy/util/objects/CacheSkin.java',
+	'me/onethecrazy/util/objects/SkinnedModel.java',
+	'me/onethecrazy/util/objects/SkinnedVertex.java',
+	'me/onethecrazy/util/objects/Vertex.java',
+	'me/onethecrazy/screens/editor/ShapeKeySettingsScreen.java',
+	'me/onethecrazy/screens/editor/VoiceShapeSettingsScreen.java',
+	'me/onethecrazy/screens/editor/VoiceTargetSelectionScreen.java'
+)
+sourceSets.client.java.source(localModelFeatures)
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.fabric_1211_minecraft_version}"
+	mappings "net.fabricmc:yarn:${project.fabric_1211_yarn_mappings}:v2"
+	modImplementation "net.fabricmc:fabric-loader:${project.fabric_1211_loader_version}"
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_1211_fabric_api_version}"
+
+	implementation project(":common")
+
+	String nfdVersion = "3.3.3"
+	implementation "org.lwjgl:lwjgl-nfd:${nfdVersion}"
+	include "org.lwjgl:lwjgl-nfd:${nfdVersion}"
+	include "org.lwjgl:lwjgl-nfd:${nfdVersion}:natives-windows"
+	include "org.lwjgl:lwjgl-nfd:${nfdVersion}:natives-windows-arm64"
+	include "org.lwjgl:lwjgl-nfd:${nfdVersion}:natives-linux"
+	include "org.lwjgl:lwjgl-nfd:${nfdVersion}:natives-linux-arm64"
+	include "org.lwjgl:lwjgl-nfd:${nfdVersion}:natives-macos"
+	include "org.lwjgl:lwjgl-nfd:${nfdVersion}:natives-macos-arm64"
+
+	implementation "org.lwjgl:lwjgl-assimp:${nfdVersion}"
+	include "org.lwjgl:lwjgl-assimp:${nfdVersion}"
+	include "org.lwjgl:lwjgl-assimp:${nfdVersion}:natives-windows"
+	include "org.lwjgl:lwjgl-assimp:${nfdVersion}:natives-windows-arm64"
+	include "org.lwjgl:lwjgl-assimp:${nfdVersion}:natives-linux"
+	include "org.lwjgl:lwjgl-assimp:${nfdVersion}:natives-linux-arm64"
+	include "org.lwjgl:lwjgl-assimp:${nfdVersion}:natives-macos"
+	include "org.lwjgl:lwjgl-assimp:${nfdVersion}:natives-macos-arm64"
+
+	include implementation("de.javagl:jgltf-model:2.0.4")
+	include implementation("de.javagl:jgltf-impl-v2:2.0.4")
+
+	modRuntimeOnly "me.djtheredstoner:DevAuth-fabric:1.2.1"
+	runtimeOnly "org.lwjgl:lwjgl-nfd:${nfdVersion}:natives-windows"
+	runtimeOnly "org.lwjgl:lwjgl-nfd:${nfdVersion}:natives-windows-arm64"
+	runtimeOnly "org.lwjgl:lwjgl-nfd:${nfdVersion}:natives-linux"
+	runtimeOnly "org.lwjgl:lwjgl-nfd:${nfdVersion}:natives-linux-arm64"
+	runtimeOnly "org.lwjgl:lwjgl-nfd:${nfdVersion}:natives-macos"
+	runtimeOnly "org.lwjgl:lwjgl-nfd:${nfdVersion}:natives-macos-arm64"
+	runtimeOnly "org.lwjgl:lwjgl-assimp:${nfdVersion}:natives-windows"
+	runtimeOnly "org.lwjgl:lwjgl-assimp:${nfdVersion}:natives-windows-arm64"
+	runtimeOnly "org.lwjgl:lwjgl-assimp:${nfdVersion}:natives-linux"
+	runtimeOnly "org.lwjgl:lwjgl-assimp:${nfdVersion}:natives-linux-arm64"
+	runtimeOnly "org.lwjgl:lwjgl-assimp:${nfdVersion}:natives-macos"
+	runtimeOnly "org.lwjgl:lwjgl-assimp:${nfdVersion}:natives-macos-arm64"
+
+	modApi "maven.modrinth:modmenu:11.0.3"
+}
+
+tasks.named('test') {
+	dependsOn(':common:test')
+}
+
+remapJar {
+	archiveFileName.set("${rootProject.archives_base_name}-client-v${project.version}+mc${project.fabric_1211_minecraft_version}.jar")
+}
+
+processResources {
+	inputs.property "version", project.version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": inputs.properties.version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 21
+}
+
+java {
+	withSourcesJar()
+
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
+}
+
+jar {
+	dependsOn(":common:classes")
+	inputs.property "archivesName", project.base.archivesName
+
+	from(project(":common").sourceSets.main.output)
+
+	from(rootProject.file("LICENSE")) {
+		rename { "${it}_${inputs.properties.archivesName}"}
+	}
+}
+
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			artifactId = project.base.archivesName.get()
+			from components.java
+		}
+	}
+
+	repositories {
+	}
+}

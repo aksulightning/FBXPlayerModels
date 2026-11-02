@@ -10,6 +10,8 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import release_metadata
 
+CLIENT_NOTE = (release_metadata.ROOT / 'release-notes/fabric-1.21.1-client.md').read_text()
+
 
 class ArtifactVerificationTest(unittest.TestCase):
     def setUp(self):
@@ -20,10 +22,10 @@ class ArtifactVerificationTest(unittest.TestCase):
         patch.object(release_metadata, 'ROOT', root).start()
         patch.dict(os.environ, {
             'BUILD_COMMIT': 'a' * 40, 'BUILD_RUN_ID': '123',
+            'BUILD_SOURCE_BRANCH': 'modrinth-last-update',
             'GITHUB_REPOSITORY': 'aksulightning/FBXPlayerModels',
             'RELEASE_VERSION': '2.0.0', 'RELEASE_NOTES': 'Alpha release',
         }).start()
-        os.environ.pop('BUILD_SOURCE_BRANCH', None)
         (root / 'gradle.properties').write_text(
             'archives_base_name=fbx-player-models\nforge_1211_mod_version=2.0.0+1.21.1\n')
         self.bundle = root / '.release/forge-1.21.1'
@@ -49,7 +51,7 @@ class ArtifactVerificationTest(unittest.TestCase):
         self.assertEqual('2.0.0+forge.1.21.1', verified['version'])
         self.assertEqual('forge', verified['loader'])
 
-    def test_scheduled_release_can_verify_main_branch(self):
+    def test_selected_main_branch_can_be_verified(self):
         os.environ['BUILD_SOURCE_BRANCH'] = 'main'
         self.manifest['source_branch'] = 'main'
         self.write_manifest()
@@ -73,6 +75,37 @@ class ArtifactVerificationTest(unittest.TestCase):
         os.environ['RELEASE_VERSION'] = '3.0.0'
         with self.assertRaises(ValueError):
             release_metadata.verify_bundle('forge-1.21.1')
+
+    def test_client_fabric_has_distinct_filename_version_and_modpack_changelog(self):
+        root = release_metadata.ROOT
+        with (root / 'gradle.properties').open('a') as stream:
+            stream.write('fabric_1211_mod_version=2.0.0+1.21.1\nfabric_1211_client_mod_version=2.0.0+1.21.1\n')
+        (root / 'release-notes').mkdir()
+        (root / 'release-notes/fabric-1.21.1-client.md').write_text(CLIENT_NOTE)
+        target = 'fabric-1.21.1-client'
+        expected = release_metadata.metadata(target)
+        bundle = root / '.release' / target
+        bundle.mkdir()
+        jar = bundle / expected['filename']
+        jar.write_bytes(b'client-only artifact')
+        manifest = dict(self.manifest, **expected)
+        manifest['sha256'] = hashlib.sha256(jar.read_bytes()).hexdigest()
+        (bundle / 'release-manifest.json').write_text(json.dumps(manifest))
+        verified = release_metadata.verify_bundle(target)
+        self.assertEqual('fbx-player-models-client-v2.0.0+1.21.1+mc1.21.1.jar', expected['filename'])
+        self.assertNotEqual(release_metadata.metadata('fabric-1.21.1')['filename'], expected['filename'])
+        self.assertEqual('2.0.0+fabric-client.1.21.1', verified['version'])
+        self.assertLessEqual(len(verified['version']), 32)
+        self.assertIn("future-proofing [Aksu's Peaceful Gameplay Pack]", verified['changelog'])
+        self.assertIn('https://modrinth.com/modpack/aksus-peaceful-gameplay-pack', verified['changelog'])
+
+    def test_multiline_changelog_uses_github_output_delimiter(self):
+        destination = Path(self.temp.name) / 'github-output'
+        os.environ['GITHUB_OUTPUT'] = str(destination)
+        release_metadata.output('changelog', 'First line\nSecond line')
+        lines = destination.read_text().splitlines()
+        delimiter = lines[0].split('<<', 1)[1]
+        self.assertEqual(['First line', 'Second line', delimiter], lines[1:])
 
 
 if __name__ == '__main__':

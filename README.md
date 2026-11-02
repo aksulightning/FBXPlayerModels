@@ -8,14 +8,29 @@ This release is experimental and made for playing with friends. Public multiplay
 
 | Minecraft | Loader | What other players see |
 | --- | --- | --- |
-| 1.21.1 | Fabric | Shared models in an **Open to LAN** world when host and guests run matching mod versions |
+| 1.21.1 | Fabric (full) | Shared models in an **Open to LAN** world when host and guests run matching mod versions |
+| 1.21.1 | Fabric (client only) | Your model is displayed only on your own client |
 | 26.2 | Fabric | Shared models in an **Open to LAN** world when host and guests run matching mod versions |
 | 1.21.1 | Forge | Your model is displayed only on your own client |
 | Beta 1.7.3 | Babric + StationAPI | Your model is displayed only on your own client |
 
-Forge and Beta are client-only variants. They require no server-side installation, send no model data, and do not make your model visible to friends. Their existing local configuration paths and saved selections are retained.
+Fabric 1.21.1 also has the separate `fabric-1.21.1-client` variant, alongside the client-only Forge and Beta variants. They require no server-side installation, send no model data, and do not make your model visible to friends. Their existing local configuration paths and saved selections are retained.
 
-Modern Fabric gameplay features activate in single-player or after a compatible integrated LAN host approves the connection. Dedicated servers are unsupported, even on a private address. Forge and Beta use the resolved peer address to allow local-network connections; a client-only mod cannot establish whether a private endpoint is a dedicated server, tunnel, VPN, or proxy. These checks are a support policy, not a security boundary.
+Full Fabric gameplay features activate in single-player or after a compatible integrated LAN host approves the connection. Dedicated servers are unsupported, even on a private address. The client-only variants use the resolved peer address to allow local-network connections; a client-only mod cannot establish whether a private endpoint is a dedicated server, tunnel, VPN, or proxy. These checks are a support policy, not a security boundary.
+
+## Fabric 1.21.1 client-only variant
+
+`fabric-1.21.1-client` is provided for future-proofing [Aksu's Peaceful Gameplay Pack](https://modrinth.com/modpack/aksus-peaceful-gameplay-pack). Its production jar is `fbx-player-models-client-v2.0.0+1.21.1+mc1.21.1.jar`.
+
+It includes model selection/previews, rig binding, animation settings, first-person controls, Default shape keys, local Voice Shape, and the full version's UpAxis-aware FBX import and shape recovery. Open **Settings → Shape Key Settings** or **Voice Shape Settings** to edit the new features. Simple Voice Chat is optional; Voice Shape can also use the local microphone. LAN model sharing and FBX entities remain exclusive to the full version. The detailed feature comparison is in [Code_Guide.md](Code_Guide.md).
+
+Choose either the full or client-only Fabric 1.21.1 jar for an instance; both declare the same mod ID and cannot be installed together. The client-only target has its own workflow option and is included when **all** is selected. Its modpack note is appended automatically to GitHub and Modrinth release notes, including when custom notes are entered.
+
+## Forge 1.21.1 local features
+
+Forge includes Default shape-key sliders/reset and previews, Voice Shape bone or shape-key mappings, and UpAxis-aware FBX import with binary shape recovery. Open **Settings → Shape Key Settings** or **Voice Shape Settings**. Voice Shape supports the local microphone and optional Simple Voice Chat input, with manual preview and Test Pulse for setup. Settings and animations stay on your client.
+
+The Forge mod ID and saved model selections are retained. Simple Voice Chat is optional; if installed, its API must be version 2.6.0 or newer. Use the production `fbx-player-models-forge-v2.0.0+1.21.1+mc1.21.1.jar`, built through `:forge-1.21.1:jarJar`.
 
 ## Use a model
 
@@ -42,7 +57,7 @@ The host can upload without enabling cheats. Existing operator and guest upload 
 
 Model files must be strictly smaller than 2 MiB. Share models only with people you trust.
 
-The modern Fabric variants retain Default shape keys, Voice Shape, and FBX entity rendering. These full-mod features are not added to the imported client-only ports.
+Full Fabric variants include Default shape keys, Voice Shape, and FBX entity rendering. Fabric 1.21.1 Client Only and Forge 1.21.1 include local Default shape keys, Voice Shape, and the updated UpAxis-aware FBX importer. Beta retains its existing Lite feature set.
 
 ## FBX entities on modern Fabric
 
@@ -58,19 +73,16 @@ These require command permissions. Supported clients receive the named model fro
 
 ## Manual builds and releases
 
-The manual release workflows use `modrinth-last-update`. Pushing changes does not immediately trigger a build or publication.
+Release workflows run only when you click **Run workflow**. They build the exact commit from the branch you select, including `main`; there are no scheduled or push-triggered releases.
 
-In GitHub Actions, manually run **Manual release build** on `modrinth-last-update`, selecting one target or all four. Each artifact contains its production jar and a manifest recording its source commit and SHA-256 checksum. Download and review the artifacts first.
+- **GitHub release**: open **Actions → GitHub release → Run workflow**, select the branch and one target or **all**, enter a new tag such as `v2.0.0-lan`, and run it. It builds/tests the selected variants and creates one release containing their production jars. The default `alpha` channel creates a GitHub prerelease.
+- **Modrinth release**: open **Actions → Modrinth release → Run workflow**, select the branch and targets, leave the channel as **alpha**, and run it. It builds/tests the selected variants, verifies their artifacts, and publishes a loader/game-specific Modrinth version for each target. Configure repository secret `MODRINTH_TOKEN` and variable `MODRINTH_ID` first.
 
-To publish, separately run **Publish reviewed release** on the same branch. Supply the successful build run ID, reviewed target, version, channel, release notes, and destination. Publication uses the existing artifact without rebuilding. GitHub publication requires a new tag and never replaces an existing tag or release. Modrinth publication requires the repository secret `MODRINTH_TOKEN` and variable `MODRINTH_ID`.
+Both release workflows accept release notes. They do not require an earlier build run ID or a separately entered mod version; version metadata comes from the selected source's `gradle.properties`. Existing GitHub tags/releases are never replaced. Modrinth skips an already-listed version only when its channel, loader/game pair, and file contents match; conflicting versions stop publication.
 
-Local compilation commands, exact production filenames, toolchains, and the manual gameplay checklist are documented in [Code_Guide.md](Code_Guide.md). No build or publication is triggered by opening model settings or using the mod.
+**Manual release build** remains available for building downloadable artifacts without publishing. It is also the shared build implementation used by both release workflows. All selected builds must succeed before publication, and the configured Forge/Beta tests run as part of those builds.
 
-## One-time scheduled alpha release
-
-A separate workflow targets **2 November 2026 at 13:00 Helsinki time (11:00 UTC)**. It must be committed and pushed with its supporting scripts to the default branch, `main`, before that time to activate the schedule. It builds all four variants, runs the configured Beta/Forge tests, verifies the artifacts, and publishes missing alpha versions to Modrinth after all builds succeed. It requires `MODRINTH_TOKEN` and `MODRINTH_ID`.
-
-The date guard prevents releases on any other day. GitHub may delay scheduled jobs, so publication follows the build/test completion rather than an exact 13:00 upload. **One-time alpha release 2026-11-02** also supports manual dispatch on `main` after 13:00 that same day if the scheduled event is missed. Existing matching versions are skipped; conflicting versions are never replaced.
+Commit and push the workflow files to the default branch so GitHub displays their **Run workflow** buttons. Exact production filenames, toolchains, and the manual gameplay checklist are documented in [Code_Guide.md](Code_Guide.md).
 
 ## Credits
 

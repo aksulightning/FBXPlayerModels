@@ -28,6 +28,7 @@ public class SkinPreviewRenderer {
     private final int dimensions;
     private final float scale;
     private float yaw, pitch = 0;
+    private float zoom = 1f;
     private String selectedPreviewHash = "";
     @Nullable private CacheSkin selectedPreviewCache;
 
@@ -83,8 +84,22 @@ public class SkinPreviewRenderer {
         ((LivingEntityRenderExtension)playerRenderer).fbx_player_models$setPlayerAsNull();
     }
 
+    public void setView(float yaw, float pitch, float zoom) {
+        this.yaw = yaw;
+        this.pitch = pitch;
+        this.zoom = zoom;
+    }
+
+    /** Editor geometry remains visible independently of the gameplay display preference. */
+    public void renderModelPreview(GuiGraphics ctx, @Nullable CacheSkin cache) {
+        List<Vertex> vertices = cache == null ? null : cache.skinnedModel == null
+                ? cache.vertices : cache.skinnedModel.staticVertices();
+        renderVertices(ctx, vertices, true);
+        ctx.renderOutline(x, y, dimensions, dimensions, 0xFFFFFFFF);
+    }
+
     private boolean renderCachedSelfSkin(GuiGraphics ctx, Minecraft client, float deltaTicks) {
-        if (!FBXPlayerModelsClient.options().isEnabled) {
+        if (!FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()) {
             return false;
         }
 
@@ -108,6 +123,10 @@ public class SkinPreviewRenderer {
             );
         }
 
+        return renderVertices(ctx, vertices, false);
+    }
+
+    private boolean renderVertices(GuiGraphics ctx, @Nullable List<Vertex> vertices, boolean centered) {
         if (vertices == null || vertices.isEmpty()) {
             return false;
         }
@@ -116,10 +135,12 @@ public class SkinPreviewRenderer {
 
         PoseStack matrices = ctx.pose();
         matrices.pushPose();
-        matrices.translate(x + dimensions / 2f, y + dimensions - 6f, 100f);
-        matrices.scale(scale, -scale, scale);
+        matrices.translate(x + dimensions / 2f, centered ? y + dimensions / 2f : y + dimensions - 6f, 100f);
+        float viewScale = scale * zoom;
+        matrices.scale(viewScale, -viewScale, viewScale);
         matrices.mulPose(Axis.YP.rotationDegrees(yaw));
         matrices.mulPose(Axis.XP.rotationDegrees(pitch));
+        if (centered) matrices.translate(0f, -1f, 0f);
 
         PoseStack.Pose entry = matrices.last();
         Matrix4f matrix = entry.pose();
@@ -154,7 +175,7 @@ public class SkinPreviewRenderer {
 
     private boolean shouldRenderVanillaPlayerFallback() {
         var selectedSkin = FBXPlayerModelsClient.options().selectedSkin;
-        return !FBXPlayerModelsClient.options().isEnabled
+        return !FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()
                 || selectedSkin == null
                 || selectedSkin.hash == null
                 || selectedSkin.hash.isBlank();

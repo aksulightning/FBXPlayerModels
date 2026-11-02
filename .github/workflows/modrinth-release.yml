@@ -1,0 +1,121 @@
+name: Modrinth release
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Versions to build and publish
+        type: choice
+        default: all
+        options:
+          - all
+          - fabric-1.21.1
+          - fabric-1.21.1-client
+          - fabric-26.2
+          - forge-1.21.1
+          - fabric-b1.7.3
+      channel:
+        description: Modrinth release channel
+        type: choice
+        default: alpha
+        options:
+          - alpha
+          - beta
+          - release
+      notes:
+        description: Release notes
+        type: string
+        default: Single-player and LAN release with optional client-only variants.
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: fbx-manual-modrinth-release
+  cancel-in-progress: false
+
+env:
+  BUILD_SOURCE_BRANCH: ${{ github.ref_name }}
+  BUILD_COMMIT: ${{ github.sha }}
+  BUILD_RUN_ID: ${{ github.run_id }}
+  RELEASE_CHANNEL: ${{ inputs.channel }}
+  RELEASE_NOTES: ${{ inputs.notes }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Check Modrinth publishing configuration
+        env:
+          MODRINTH_PROJECT: ${{ vars.MODRINTH_ID }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: python3 .github/scripts/release_publish.py modrinth-config
+
+  build:
+    needs: validate
+    uses: ./.github/workflows/nightly.yml
+    with:
+      target: ${{ inputs.target }}
+
+  preflight:
+    needs: build
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.verify.outputs.matrix }}
+      has_pending: ${{ steps.verify.outputs.has_pending }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: fbx-player-models-*
+          path: .release/
+      - name: Verify all selected artifacts and check existing versions
+        id: verify
+        env:
+          RELEASE_TARGET: ${{ inputs.target }}
+          MODRINTH_PROJECT: ${{ vars.MODRINTH_ID }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: python3 .github/scripts/release_publish.py modrinth-preflight "$RELEASE_TARGET"
+
+  publish:
+    name: Publish ${{ matrix.target }}
+    needs: preflight
+    if: needs.preflight.outputs.has_pending == 'true'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.preflight.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v5
+        with:
+          name: ${{ matrix.artifact }}
+          path: .release/${{ matrix.target }}/
+      - name: Verify selected artifact
+        id: artifact
+        env:
+          RELEASE_TARGET: ${{ matrix.target }}
+        run: python3 .github/scripts/release_publish.py verify "$RELEASE_TARGET"
+      - name: Create Modrinth release
+        uses: cloudnode-pro/modrinth-publish@v2
+        with:
+          token: ${{ secrets.MODRINTH_TOKEN }}
+          project: ${{ vars.MODRINTH_ID }}
+          name: ${{ steps.artifact.outputs.title }}
+          version: ${{ steps.artifact.outputs.version }}
+          channel: ${{ inputs.channel }}
+          loaders: ${{ steps.artifact.outputs.loader }}
+          game-versions: ${{ steps.artifact.outputs.minecraft }}
+          changelog: ${{ steps.artifact.outputs.changelog }}
+          files: ${{ steps.artifact.outputs.file }}

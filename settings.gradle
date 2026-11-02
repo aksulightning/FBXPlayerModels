@@ -46,3 +46,7 @@ if (includeAllLoaderProjects || requestedLoaderProjects.contains("fabric-b1.7.3"
 if (includeAllLoaderProjects || requestedLoaderProjects.contains("forge-1.21.1")) {
 	include("forge-1.21.1")
 }
+
+if (includeAllLoaderProjects || requestedLoaderProjects.contains("fabric-1.21.1-client")) {
+	include("fabric-1.21.1-client")
+}

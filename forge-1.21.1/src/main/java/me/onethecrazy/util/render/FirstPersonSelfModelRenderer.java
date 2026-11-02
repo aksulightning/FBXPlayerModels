@@ -109,7 +109,7 @@ public final class FirstPersonSelfModelRenderer {
                     ? CustomModelPose.computeHeadLookRotation(player, tickDelta)
                     : CustomModelPose.HeadLookRotation.NONE;
             CustomModelPose.LimbPose limbPose = computeMinecraftLimbPose(player, tickDelta, animation);
-            vertices = cacheSkin.skinnedModel.renderWithHiddenHead(animation, seconds, headLookRotation, limbPose);
+            vertices = cacheSkin.skinnedModel.renderWithHiddenHead(animation, seconds, headLookRotation, limbPose, VoiceShapeClient.poseFor(cacheSkin.skinnedModel));
         }
 
         return vertices == null || vertices.isEmpty() ? null : vertices;
@@ -117,7 +117,7 @@ public final class FirstPersonSelfModelRenderer {
 
     private static boolean isRenderAllowed(LocalPlayer player) {
         Minecraft client = Minecraft.getInstance();
-        return LanSession.isAllowed() && FBXPlayerModelsClient.options().isEnabled
+        return LanSession.isAllowed() && FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()
                 && FBXPlayerModelsClient.options().renderSelfModelInFirstPerson
                 && client.getCameraEntity() == player
                 && client.options.getCameraType() == CameraType.FIRST_PERSON

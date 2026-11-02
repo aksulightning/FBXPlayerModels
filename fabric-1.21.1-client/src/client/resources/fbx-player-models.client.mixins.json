@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "package": "me.onethecrazy.mixin.client",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "CameraMixin",
+    "HeldItemRendererMixin",
+    "RenderMixin",
+    "MainMenuMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+	}
+}

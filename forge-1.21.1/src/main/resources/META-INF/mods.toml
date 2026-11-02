@@ -10,7 +10,7 @@ displayName="FBX Player Models (Client Only)"
 logoFile="assets/fbx-player-models/icon.png"
 authors="1TheCrazy, Aksu Lightning"
 displayURL="https://github.com/aksulightning/FBXPlayerModels"
-description='''Use a local FBX model for your own player in single-player and LAN. Client only; models are not shared.'''
+description='''Use a local FBX model for your own player in single-player and LAN, with Default shape keys and local Voice Shape animation. Client only; models are not shared.'''
 displayTest="IGNORE_ALL_VERSION"
 
 [[dependencies.fbx_player_models_lite]]
@@ -18,6 +18,13 @@ modId="forge"
 mandatory=true
 versionRange="[52.1.0,53)"
 ordering="NONE"
+side="CLIENT"
+
+[[dependencies.fbx_player_models_lite]]
+modId="voicechat_api"
+mandatory=false
+versionRange="[2.6.0,)"
+ordering="AFTER"
 side="CLIENT"
 
 [[dependencies.fbx_player_models_lite]]

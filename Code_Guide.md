@@ -2,23 +2,24 @@
 
 ## Release variants and loader support
 
-The `modrinth-last-update` release maintains the full mod on Fabric 1.21.1 and 26.2 and adds client-only Forge 1.21.1 and Babric/StationAPI Beta 1.7.3 variants. Each target produces a separate jar; there is no universal jar. NeoForge, Quilt, and Architectury are not used.
+This release maintains the full mod on Fabric 1.21.1 and 26.2 and adds client-only Fabric 1.21.1, Forge 1.21.1, and Babric/StationAPI Beta 1.7.3 variants. Each target produces a separate jar; there is no universal jar. NeoForge, Quilt, and Architectury are not used.
 
-The modern Fabric variants support single-player and Open to LAN model sharing. Forge and Beta retain local-player rendering only and register no model-sharing packets, server stores, or FBX entities. The imported ports retain their existing configuration formats, paths, and mod identifiers; their display names describe the client-only variant.
+The full Fabric variants support single-player and Open to LAN model sharing. Fabric 1.21.1 Client Only, Forge, and Beta retain local-player rendering only and register no model-sharing packets, server stores, or FBX entities. The imported ports retain their existing configuration formats, paths, and mod identifiers; their display names describe the client-only variant.
 
-`common` continues to serve only the full modern Fabric mod. `client-common` contains the imported ports' separate Java 17 model/config/platform code. Forge compiles those shared sources into its own Java 21 source set, while Beta includes the `client-common` output. Keeping these modules separate preserves the modern shape/voice implementation and avoids incompatible duplicate classes in any one jar.
+`common` serves the full modern Fabric mod, Fabric 1.21.1 Client Only, and Forge, including their shared Java 21 shape/voice/model/config code. Forge compiles the common sources directly into its own source set to avoid split Java packages. `client-common` retains the separate Java 17 Lite model/config/platform code for Beta, which includes its compiled output. No jar includes both common variants, avoiding duplicate model/config classes.
 
 `session-policy/src/main/java` is a small shared source directory, compiled into `common`, `client-common`, and Forge. It has no Minecraft, loader, or rendering dependencies.
 
 ## Supported targets
 
-The repository maintains two full-mod Fabric targets, plus the two client-only ports described below. Each loader module has its own version-sensitive source, resources, metadata, and production jar. Modern Fabric uses `common`; the imported client-only ports use `client-common`. Neither shared module is a standalone Minecraft distribution.
+The repository maintains two full-mod Fabric targets, plus the three client-only ports described below. Each loader module has its own version-sensitive source, resources, metadata, and production jar. Full Fabric, Fabric 1.21.1 Client Only, and Forge use `common`; Beta uses `client-common`. Neither shared module is a standalone Minecraft distribution.
 
 ### Target and toolchain versions
 
 | Module | Minecraft | Game namespace | Java | Fabric Loom | Fabric Loader | Fabric API |
 | --- | --- | --- | --- | --- | --- | --- |
 | `fabric-1.21.1` | `1.21.1` | Yarn `1.21.1+build.3` | 21 | `1.16.2` | `0.16.14` | `0.116.6+1.21.1` |
+| `fabric-1.21.1-client` | `1.21.1` | Yarn `1.21.1+build.3` | 21 | `1.16.2` | `0.16.14` | `0.116.6+1.21.1` |
 | `fabric-26.2` | `26.2` | unobfuscated game names; no Yarn | 25 | `1.17.17` | `0.19.3` | `0.156.0+26.2` |
 
 ### Mod and production-build versions
@@ -26,6 +27,7 @@ The repository maintains two full-mod Fabric targets, plus the two client-only p
 | Module | Mod version | Mod Menu | LWJGL Assimp/NFD | Build task | Production jar |
 | --- | --- | --- | --- | --- | --- |
 | `fabric-1.21.1` | `2.0.0+1.21.1` | `11.0.3` | `3.3.3` | `:fabric-1.21.1:remapJar` | `fbx-player-models-v2.0.0+1.21.1+mc1.21.1.jar` |
+| `fabric-1.21.1-client` | `2.0.0+1.21.1` | `11.0.3` | `3.3.3` | `:fabric-1.21.1-client:remapJar` | `fbx-player-models-client-v2.0.0+1.21.1+mc1.21.1.jar` |
 | `fabric-26.2` | `2.0.0+26.2` | `20.0.1` | `3.4.1` | `:fabric-26.2:jar` | `fbx-player-models-v2.0.0+26.2+mc26.2.jar` |
 
 `fabric-1.21.1` uses Yarn and produces its production artifact through Loom's `remapJar` task. Minecraft 26.2 exposes unobfuscated game names, so that module deliberately omits Yarn and produces its production artifact through `jar`.
@@ -49,6 +51,7 @@ Production packaging commands for the user to trigger individually:
 | Variant | Gradle runtime / compiler | Packaging command | Production filename under `<module>/build/libs/` |
 | --- | --- | --- | --- |
 | Fabric 1.21.1 | Java 21+ / release 21 | `bash ./gradlew :fabric-1.21.1:remapJar` | `fbx-player-models-v2.0.0+1.21.1+mc1.21.1.jar` |
+| Fabric 1.21.1 Client Only | Java 21+ / release 21 | `bash ./gradlew :fabric-1.21.1-client:remapJar` | `fbx-player-models-client-v2.0.0+1.21.1+mc1.21.1.jar` |
 | Fabric 26.2 | Java 25+ / release 25 | `bash ./gradlew :fabric-26.2:jar` | `fbx-player-models-v2.0.0+26.2+mc26.2.jar` |
 | Forge 1.21.1 | Java 21+ / Java 21 toolchain | `bash ./gradlew :forge-1.21.1:jarJar` | `fbx-player-models-forge-v2.0.0+1.21.1+mc1.21.1.jar` |
 | Babric Beta 1.7.3 | Java 21+ / Java 17 toolchain | `bash ./gradlew :fabric-b1.7.3:remapJar` | `fbx-player-models-v2.0.0+b1.7.3+mcb1.7.3.jar` |
@@ -58,6 +61,71 @@ The imported Forge port uses Forge `52.1.16`, ForgeGradle `7.0.40`, JarJar `0.2.
 Beta uses BINY `b1.7.3+e1fe071`, Fabric Loader `0.19.3`, StationAPI `2.0.0-alpha.6.4`, Loom `1.16.3`, and Babric Loom Extension `1.17.2`. Its Gradle daemon runs on Java 21 or newer, while Beta and `client-common` use a Java 17 compiler and bytecode. The manual workflow explicitly installs that compiler. The imported Foojay resolver supports Gradle toolchain discovery/downloads.
 
 `settings.gradle` recognizes both `fabric-*` and `forge-*` explicit task paths and configures only requested loader targets. Prefer explicit target tasks so unrelated loader plugins and toolchains do not need to resolve together.
+
+## Fabric 1.21.1 client-only features and comparison
+
+`fabric-1.21.1-client` originated from the user-specified `../FBXPlayerModels-lite/fabric-1.21.1` port and now includes the full version's requested local Default shape keys, Voice Shape, and UpAxis-aware FBX pipeline. The source repository was read only. The module retains client-only metadata/entrypoints/mixins and registers no main/server initializer, FBX model-sharing payloads/receivers, or entity types.
+
+The Gradle `localModelFeatures` source-directory set compiles selected files directly from `fabric-1.21.1/src/client/java`: FBX/GLB/OBJ importers, model/animation math, normalization, shape-aware cache/geometry classes, Shape Key Settings, Voice Shape Settings, and the searchable Voice Target picker. The prior Lite copies of these files were removed from the client-only source tree. Both variants therefore compile the same importer, deformation, animation, and feature-editor implementations. Full-mod networking, remote-player state, server classes, and entity registration are outside the source selection.
+
+| Feature | Full `fabric-1.21.1` | `fabric-1.21.1-client` |
+| --- | --- | --- |
+| Local FBX selection/reset, saved model settings and menu preview | Present | Present |
+| Auto/manual rig binding, clip mappings, animation toggle | Present | Present; same model/animation code |
+| First-person model, camera offsets, held-item integration | Present | Present; local cache/render adapters |
+| Default shape keys, sliders/reset and centered preview | Present | Present; same feature editor and deformation code |
+| Voice Shape bone/key mapping, input selection and live/manual preview | Present | Present; same editors, local-only pose source |
+| Local microphone / optional Simple Voice Chat input | Present | Present; same audio input/envelope classes |
+| UpAxis-aware import and binary shape recovery | Present | Present; same importers and `FbxCoordinateSpace` |
+| Rendering remote custom player models and LAN model/settings transfers | Present in supported integrated LAN sessions | No; local player only |
+| FBX view entity and mob variants | Present | No |
+| Connection eligibility | Integrated single-player or approved LAN host | Single-player or resolved local-network address |
+
+The client-only target now includes `common`, not `client-common`, so `ClientSkin` retains Default shape profiles and Voice Shape settings alongside its existing rig/clip choices. Missing legacy fields initialize to zero shape weights and a disabled Voice Shape mapping. Its settings toggle uses the shared saved enabled preference through getters/setters. Forge now uses the same common data classes through its feature port below; Beta keeps its existing Lite data/models.
+
+`SkinManager` owns a single hash-bound local cache. Selecting a model loads the shared importer/normalizer and reapplies saved rig, animation, and Default shape settings. A shape slider reshapes the cached model from immutable base geometry without reparsing or accumulating deformation, then saves locally. Voice settings save locally and the local `VoiceShapeClient` produces a frame pose only for the cached selected model and an existing imported target. No upload, download, remote lookup, settings sync, or voice-level relay is implemented.
+
+Local renderer/first-person/preview adapters use this cache and the shared shape-aware geometry/voice pose APIs. The settings screen exposes the shared shape and voice editors. Voice Shape composes with Default weights, bone animation and head/limb poses as in the full model pipeline. Editor manual preview and Test Pulse stay preview-local. World sampling requires an eligible world, visible FBX models and a loaded local model; explicit Voice Shape editing can sample without a world. Input stops on model selection/reset, disconnect and client shutdown. The optional `voicechat` entrypoint uses the existing compile-only API and plugin; the FBX feature never sends PCM or animation packets. Simple Voice Chat retains its own independent audio behavior.
+
+The client target's `test` task now depends on `common:test`, which covers the shared model feature contracts and address policy on Java 21-compatible bytecode. Its production build no longer needs a Java 17 shared compiler; the workflow's explicit Java 17 compiler setup remains only for Beta. The eight headless model tests cover signed UpAxis conversion/handedness, unchanged Y-up/invalid-axis behavior, shape-delta scaling without translation or mutation, Default weight/reset rules, legacy save defaults, voice bone interpolation/clamping, and reversed shape-key mappings.
+
+The requested release note remains at `release-notes/fabric-1.21.1-client.md`, including the purpose of future-proofing [Aksu's Peaceful Gameplay Pack](https://modrinth.com/modpack/aksus-peaceful-gameplay-pack). Both release destinations append it automatically for this target, retaining custom notes. It now describes the added local shape/voice/import features. The full and client-only Fabric jars share the `fbx-player-models` mod ID; install only one per game instance. Their filenames and Modrinth versions remain distinct: `fbx-player-models-client-v2.0.0+1.21.1+mc1.21.1.jar` and `2.0.0+fabric-client.1.21.1` for the client-only variant.
+
+Validation for this feature addition includes the four prescribed full Fabric compile tasks plus `:fabric-1.21.1-client:compileJava`, `:fabric-1.21.1-client:compileClientJava`, and `:fabric-1.21.1-client:test`, using JDK 26 and the existing Gradle cache. The first run found a missing `FileUtil` import in the adapted local settings screen; adding it resolved the error, and the same command passed. `compileJava` has no sources for this client-only module; `compileClientJava` successfully compiles the shared feature sources and local adapters. The shared `common:test` suite passed 16 tests (eight local model feature contracts plus eight LAN address-policy cases), and all 20 release-helper tests also passed. Inspection of the compiled client output confirmed the new editors/importers/voice adapter and no FBX protocol/server classes. No microphone or OpenGL display was opened by those tests. Production jar packaging, in-game UI/deformation/audio, and modpack behavior have not been exercised; no release was dispatched or published.
+
+## Forge 1.21.1 local shape, voice and importer features
+
+The initial audit found that Forge's Lite implementation lacked Default shape keys, Voice Shape and the updated FBX importer. The requested feature port now includes all three. Forge remains a client-only local-player variant for single-player and eligible LAN connections.
+
+| Local feature | Forge 1.21.1 |
+| --- | --- |
+| Own-player model, menu/editor previews | Present |
+| Rig bindings, animation clip mappings/toggle | Present |
+| First-person self model and camera controls | Present |
+| Default shape-key profiles, sliders, reset and deformation | Present |
+| Voice Shape bone/key mapping, input selection and live/manual preview | Present |
+| Local microphone / optional Simple Voice Chat input | Present |
+| Updated UpAxis-aware importer and binary shape-key recovery | Present |
+| Model-sharing protocol and FBX entities | Absent by client-only design |
+
+`forge-1.21.1/build.gradle` now compiles `common/src/main/java` and resources directly, replacing the Lite `client-common` input. This supplies the same `ClientSkin`, shape profiles, signed-axis conversion, voice settings, audio envelope/input and platform contracts as Fabric. The Forge mod ID remains `fbx_player_models_lite`; `.fbxplayermodels/.config` and cached skin paths are retained. Legacy selections, enabled preference, rig/animation mappings and first-person settings remain readable; missing shape/voice fields initialize safely. Fallback/dynamic textures use the common asset namespace, and the legacy fallback namespace remains packaged as an alias.
+
+The full Fabric 1.21.1 importer/model/normalizer sources were ported to Forge's Mojang names. Assimp and binary fallback use `FbxCoordinateSpace`, apply scene/node transforms consistently to geometry and skeletons, and recover shape deltas when needed. Mesh shape keys survive material recovery and normalization. Forge retains its loader-specific texture upload and player-pose adapters. `SkinnedModel` composes Default profiles, authored/procedural animation and local voice, including descendant bone motion, unchanged base geometry and hidden-head first-person rendering.
+
+`SkinManager` binds one local cache to the selected model hash, saves Default profiles without reparsing, and persists Voice Shape mappings without networking. The binding editor now links the ported Shape Key Settings, Voice Shape Settings and searchable target picker; the preview renderer supports centered independent previews with rotation/zoom. The saved model-enabled preference uses the common getter/setter and persists changes.
+
+`VoiceShapeClient` samples input on Forge client ticks for an eligible world with an enabled, loaded model, or while the explicit voice editor is open. Both ordinary and first-person render paths use its local pose after confirming the selected model and imported target. Input stops on model replacement/reset, disconnect and `GameShuttingDownEvent`. Forge platform events now implement join/disconnect callbacks and reload the selected cache on join. The microphone is not opened by tests or by disabled mappings.
+
+Simple Voice Chat remains optional: the API is a compile-only 2.6.0 dependency and an optional version-constrained `voicechat_api` metadata dependency. The Forge-specific plugin uses the documented [`@ForgeVoicechatPlugin` registration](https://modrepo.de/minecraft/voicechat/api/getting_started) and delegates to the shared local PCM/envelope adapter. The API and voice chat implementation are not bundled. FBX registers no model, appearance or voice-level packets, remote state or server/entity code; Simple Voice Chat retains its independent audio behavior.
+
+Validation:
+
+- `JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64 bash ./gradlew :forge-1.21.1:jarJar :forge-1.21.1:test` passed. The feature port compiled and packaged successfully; the final test run executed 22 tests with zero failures/errors/skips: eight address-policy cases, eight common feature contracts, and six Forge production-model regressions. The new tests exercise non-accumulating Default edits/reset, voice replacing only its target and restoring Default weights, bone rotation reaching descendants while animations are disabled, first-person head hiding under voice motion, normalization preserving scaled shape deltas exactly once, and legacy JSON selections/preferences.
+- The four prescribed Fabric compilation tasks passed using JDK 26; their outputs were up to date.
+- The production jar passed ZIP integrity inspection. It contains the new feature editors, coordinate conversion, local audio/voice adapters, expanded client-only metadata, translated labels/fallback texture, six JarJar libraries and 20 native files. Voice chat API and test classes are absent. The mod's network packages still contain only LAN address/session policy classes.
+- Artifact: `forge-1.21.1/build/libs/fbx-player-models-forge-v2.0.0+1.21.1+mc1.21.1.jar`, 23,522,374 bytes; SHA-256 `64f2029036ff87cf1465506ff88a9a42561ca9d49b4971552a97fa6ea8446e9f`.
+
+The existing deprecated Forge `RenderLevelStageEvent.getPoseStack()` and Gradle compatibility warnings remain. No in-game UI/rendering, real FBX import/native execution, microphone capture, Simple Voice Chat session or LAN gameplay was exercised. No release was dispatched or published. Before release, check a Y-up and Z-up model, an exported shape-key model, slider reset, bone and shape-key voice mappings, manual/Test Pulse preview, first-person head hiding, disconnect cleanup and public-address inactivity in a game instance.
 
 ## LAN session behavior
 
@@ -71,39 +139,38 @@ The session gate covers ordinary player rendering, deferred 26.2 submissions, fi
 
 INIT/disconnect resets clear approval, pending shape snapshots, lookup/model waiters, remote skin/settings state, remote voice envelopes, and entity-model caches. Queued responses retain their originating play handler; asynchronous player parsing retains its existing world generation guard. Entity-model requests also carry a cache generation so callbacks from a departed session cannot populate the next world's cache. Server stop events remove the integrated world's store and voice-rate state from the server maps. The selected local model/cache remains available for menus.
 
-Client-only Forge and Beta use their resolved connection address without any server handshake. Forge recognizes its local in-memory single-player connection; Beta recognizes local worlds and reads the multiplayer address through a registered `ClientNetworkHandlerAccessor`. Neither variant registers networking payloads or uploads a model. The same decision gates their player render, first-person body/hand behavior, and camera offsets; menu/editor geometry remains available. Each displays one unsupported-connection notice per play connection.
+Client-only Fabric 1.21.1, Forge, and Beta use their resolved connection address without any server handshake. Client-only Fabric 1.21.1 and Forge recognize their local in-memory single-player connection; Beta recognizes local worlds and reads the multiplayer address through a registered `ClientNetworkHandlerAccessor`. Neither variant registers networking payloads or uploads a model. The same decision gates their player render, first-person body/hand behavior, and camera offsets; menu/editor geometry remains available. Each displays one unsupported-connection notice per play connection.
 
 A client-only port cannot identify an integrated host versus a dedicated/private/VPN/proxy endpoint from its address alone. Such connections may pass the local-address check. The modern Fabric protocol provides a cooperating host check, not authenticated proof against modified peers or tunneled networks. These are explicit support-policy limits, not network-isolation guarantees.
 
 ## Manual release workflows
 
-`.github/workflows/nightly.yml` now contains **Manual release build**, with `workflow_dispatch` only and read-only repository permissions. It runs only when dispatched on `modrinth-last-update`, checks out the exact dispatch commit, and accepts one target or all four. It runs the packaging task for each selected target, then uploads only the expected production jar and `release-manifest.json`. No release tags, GitHub releases, or Modrinth versions are created by a build.
+There are two separate release entrypoints, both triggered only by `workflow_dispatch` and the GitHub **Run workflow** button:
 
-`.github/scripts/release_metadata.py` is the single source of target tasks, loader/game metadata, artifact names, and proposed tags. Jar filenames are derived from `gradle.properties`. Each manifest includes repository, source branch, commit SHA, run ID, target, loader, game version, expected filename, and SHA-256 checksum. Artifact names are `fbx-player-models-<module>`.
+| Workflow | File | User inputs | Result |
+| --- | --- | --- | --- |
+| **GitHub release** | `.github/workflows/github-release.yml` | Selected branch, target/all, new release tag, channel, notes | One GitHub release containing the selected production jars |
+| **Modrinth release** | `.github/workflows/modrinth-release.yml` | Selected branch, target/all, channel, notes | A separate Modrinth version for each selected loader/game target |
 
-`.github/workflows/publish-release.yml` is a separate **Publish reviewed release** manual workflow. After the user downloads and reviews a build, they provide its successful run ID, one target, version, channel, notes, and destination. The workflow verifies the source run belongs to this repository's manual build workflow and branch, checks out that build commit, downloads its artifact, and verifies provenance and checksum. Publishing never rebuilds the jar.
+The default channel is `alpha` for both workflows. GitHub maps alpha/beta to prereleases; selecting `release` creates a stable release. The client-only Fabric modpack note is added to the verified changelog automatically. Modrinth receives the selected channel directly through `cloudnode-pro/modrinth-publish@v2` and requires repository secret `MODRINTH_TOKEN` and variable `MODRINTH_ID`. GitHub uses the built-in `GITHUB_TOKEN`; only its publication job receives `contents: write`.
 
-For Modrinth, configure repository secret `MODRINTH_TOKEN` and variable `MODRINTH_ID`. The manual publish workflow defaults to the `alpha` channel, as requested; that input is passed to the Modrinth publisher. The publisher adds a loader/game suffix to the chosen version, such as `2.0.0+forge.1.21.1`, to distinguish variants. The entered version must match the reviewed jar's configured base version, and the resulting version number must fit 32 characters. Loader/game metadata remains `fabric` + `1.21.1`, `fabric` + `26.2`, `forge` + `1.21.1`, and `babric` + `b1.7.3` respectively. Each target is published separately after review.
+The observed [manual build run 41423139303](https://github.com/aksulightning/FBXPlayerModels/actions/runs/41423139303) was dispatched on `main` but skipped because its prepare job required `modrinth-last-update`. That hard-coded branch condition has been removed. Every job now checks out the exact `${{ github.sha }}` selected by Run workflow, and artifact creation/verification receives `${{ github.ref_name }}` explicitly as `BUILD_SOURCE_BRANCH`. The workflows support `main` and other selected source branches without silently skipping them.
 
-For GitHub, supply a new release tag. The workflow refuses existing tags and never deletes a release or force-moves a tag. Proposed names are `nightly-1.21.1`, `nightly-26.2`, `nightly-forge-1.21.1`, and `nightly-b1.7.3`; if those already exist, choose a fresh versioned tag instead. GitHub and Modrinth are separate manual destination selections.
+`.github/workflows/nightly.yml` retains the **Manual release build** entrypoint for building artifacts without publishing and adds `workflow_call` so both release workflows reuse that implementation from the same source commit. There is no push or scheduled trigger. All selectors also include `fabric-1.21.1-client`, for five targets total. Target metadata remains centralized in `.github/scripts/release_metadata.py`. Explicit target tasks isolate the selected loader/toolchain configurations; Beta uses a Java 17 compiler and Java 21 Gradle runtime, Forge and both Fabric 1.21.1 variants use Java 21, and Fabric 26.2 uses Java 25. Beta, Forge, and Fabric 1.21.1 Client Only run their configured test tasks alongside production packaging.
 
-The workflows must be available to GitHub Actions and dispatched using the release branch. This implementation does not push, merge, publish, or register workflows remotely. Artifact download follows the [official download-artifact run-ID inputs](https://github.com/actions/download-artifact/tree/v5); Modrinth publication uses the [existing publisher's declared inputs](https://github.com/cloudnode-pro/modrinth-publish/blob/v2/action.yaml).
+Both release workflows wait for all selected builds/tests to succeed before publishing. Each build uploads its production jar and `release-manifest.json` in artifact `fbx-player-models-<module>`. The manifest records repository, selected source branch/ref, commit, run ID, target, loader/game, mod version, filename, and SHA-256. Publication downloads artifacts from its own workflow run and validates every selected artifact before the first external write. No previous run ID or separate version input is needed.
 
-## One-time automatic alpha release: 2 November 2026
+`.github/scripts/release_publish.py` handles artifact directory normalization, selected-target validation, Modrinth duplicate preflight, and GitHub release creation. Modrinth version numbers come from the built target's version plus loader/game suffix, such as `2.0.0+forge.1.21.1`, and retain the 32-character limit. Existing versions are skipped only when listed with the selected channel, exact loader/game pair, and identical SHA-512 file content. Conflicts stop publication without replacing or deleting anything; retries may skip versions that were already published successfully.
 
-The user authorized one automatic Modrinth release today at **13:00 Europe/Helsinki**, which is **11:00 UTC on 2026-11-02**. This replaces the manual-only policy for this one release; the existing manual workflows remain available.
+GitHub release creation takes a new, valid tag, checks that it does not already exist, and creates one release at the verified build commit with all selected production jars. Release notes are written through a body file and include artifact checksums. Alpha/beta use `--prerelease`. Existing tags/releases are never deleted, overwritten, or force-moved.
 
-`.github/workflows/scheduled-alpha-release.yml` runs from the repository's confirmed default branch, `main`, using cron `0 11 2 11 *`. GitHub cron has no year field, so `.github/scripts/scheduled_release.py` additionally enforces the complete local date and time: publication is allowed only on 2026-11-02 at/after 13:00 Helsinki and before the following local midnight. Future November 2 runs cannot publish. The manual dispatch option provides same-day recovery if GitHub misses the cron event; it cannot publish early or on another date.
+The older combined `publish-release.yml` and one-time `scheduled-alpha-release.yml` workflows have been removed, along with the date-gated scheduling helper/tests. There is no remaining time-of-day restriction or automatic publication trigger. The manual GitHub and Modrinth runs are serialized independently to avoid overlapping same-destination publication runs.
 
-The scheduler starts all four production builds at the scheduled time using the exact triggering commit on `main`. Beta and Forge also run their configured regression tests. Publication waits for every build/test job to succeed, downloads all four production artifacts, and verifies their target/version/branch/commit/run/checksum metadata before any upload. `release_metadata.py` now exposes `verify_bundle()` for both manual and scheduled workflows and accepts an explicit `BUILD_SOURCE_BRANCH`; manual callers retain the original `modrinth-last-update` default, while this scheduled workflow supplies `main`.
+To use the release buttons, commit/push the workflow files to the repository's default branch, then open **Actions → GitHub release** or **Actions → Modrinth release → Run workflow**. Select the intended source branch and targets. GitHub additionally requires a fresh tag; both workflows accept channel/notes. This implementation does not commit, push, dispatch a release, or publish remotely.
 
-Preflight requires the existing repository secret `MODRINTH_TOKEN` and variable `MODRINTH_ID`. It reads the project's versions using the [Modrinth versions API](https://docs.modrinth.com/api/operations/getprojectversions/). An existing version is skipped only when it is a listed alpha with the same loader/game pair and identical SHA-512 file content. Conflicting files or metadata stop automatic publication; nothing is deleted or replaced. Only missing variants proceed to the existing Modrinth publish action with `channel: alpha`. This one-time workflow does not create GitHub releases or tags. Its concurrency group serializes reruns.
+Focused helper tests run with `python3 -m unittest discover -s .github/scripts/tests -v`. They cover artifact checksum/version/branch/commit/run protections, target selection, matching/conflicting Modrinth versions and channels, GitHub tag collisions, multi-jar prereleases, exact build-commit targeting, and literal/multiline release-note preservation. All publication/network calls are mocked in these tests. The build reuse follows the [official reusable-workflow syntax](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows).
 
-Activation requires committing/pushing the workflow and supporting scripts to `main` before the scheduled time. Local configuration alone does not register a remote schedule; no commit/push or remote activation was performed by the agent. GitHub schedules run only from the default branch and may be delayed or dropped, particularly at the start of an hour, as documented in the [GitHub schedule reference](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule). Accordingly, **13:00 is the workflow start target**; Modrinth publication follows successful builds/tests and queue availability, and exact upload time is not guaranteed. If the cron event is missed, the same-day manual dispatch remains available.
-
-Focused scheduler tests can be run with `python3 -m unittest discover -s .github/scripts/tests -v`. They exercise the Helsinki/UTC boundary, same-day delays, midnight/next-year rejection, duplicate/conflicting Modrinth versions, and artifact branch/commit/run/version/checksum protections. All network calls and publication steps remain outside these unit tests.
-
-Validation on 2026-11-02: all 15 scheduler/artifact regression tests passed, and the prescribed four modern Fabric compilation tasks passed with JDK 26. No scheduled workflow, Modrinth upload, remote commit, or push was performed during this local validation.
+Validation on 2026-11-02: all 17 release-helper tests passed, and the required four modern Fabric compilation tasks passed with JDK 26 and the existing Gradle cache. The new release workflows have not been dispatched on GitHub; no commits, pushes, tags, releases, or Modrinth versions were created by this change.
 
 ## User-run gameplay checklist
 
@@ -111,9 +178,9 @@ Validation on 2026-11-02: all 15 scheduler/artifact regression tests passed, and
 2. On each modern Fabric target, open a world to LAN and join from a second matching modded client. Grant the guest upload permission, replace/reset both players' models, and verify both clients see the updates.
 3. On modern Fabric LAN, adjust Default shape weights and Voice Shape bone/key mappings, then verify remote appearance and voice motion. Check an FBX entity model and a LAN client without the mod.
 4. Join a public-address server and verify vanilla rendering, no model transfers, no FBX camera/hand changes, and the inactive notice. Modern Fabric should also remain inactive on a private dedicated server and on an old server without the new approval payload.
-5. On Forge and Beta, join a local-network server without installing this mod on the server. Verify only the local player changes and no models/settings are shared. Confirm their documented address-based limitation.
+5. On client-only Fabric 1.21.1, Forge, and Beta, join a local-network server without installing this mod on the server. Verify only the local player changes and no models/settings are shared. Confirm their documented address-based limitation.
 6. Move between two LAN worlds with different entity files using the same filename, then between LAN and public multiplayer. Confirm models, shape/voice state, and pending responses do not leak between sessions; menu previews and the local selection should survive.
-7. Manually build reviewed jars, inspect artifact names/manifests, and run publication separately only when ready. Check each published loader/game pair, including Babric's StationAPI requirement.
+7. Use Manual release build for a build-only review, or run the separate GitHub/Modrinth release workflow when ready to build and publish. Check each published loader/game pair, including Babric's StationAPI requirement.
 
 Modern Fabric validation on 2026-11-02: `bash ./gradlew :fabric-1.21.1:compileJava :fabric-1.21.1:compileClientJava :fabric-26.2:compileJava :fabric-26.2:compileClientJava` succeeded with `JAVA_HOME=/usr/lib/jvm/temurin-26-jdk-amd64` and access to the existing Gradle cache outside the workspace sandbox. The default Java 8 is unsuitable. The first compilation found a removed 26.2 `displayClientMessage` call in `LanSession`; replacing it with the existing target's `sendSystemMessage` API resolved the error. The compiler still reports an existing deprecated API in `FBXPlayerModelsClient`.
 
@@ -166,6 +233,12 @@ root/
     build.gradle
     src/main/java/...
     src/main/resources/fabric.mod.json
+  fabric-1.21.1-client/
+    build.gradle
+    src/client/java/...
+    src/main/resources/fabric.mod.json
+  release-notes/
+    fabric-1.21.1-client.md
   fabric-1.21.1/
     build.gradle
     src/main/java/...

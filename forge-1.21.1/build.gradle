@@ -18,12 +18,13 @@ java {
 
 // Compile shared sources into the same Forge module to avoid split Java packages.
 sourceSets.main {
-	java.srcDir rootProject.file('client-common/src/main/java')
+	java.srcDir rootProject.file('common/src/main/java')
 	java.srcDir rootProject.file('session-policy/src/main/java')
-	resources.srcDir rootProject.file('client-common/src/main/resources')
+	resources.srcDir rootProject.file('common/src/main/resources')
 }
 
 sourceSets.test.java.srcDir rootProject.file('session-policy/src/test/java')
+sourceSets.test.java.srcDir rootProject.file('common/src/test/java')
 
 minecraft {
 	mappings channel: 'official', version: project.forge_1211_minecraft_version
@@ -41,6 +42,7 @@ repositories {
 	maven fg.forgeMaven
 	maven fg.minecraftLibsMaven
 	mavenCentral()
+	maven { url = 'https://maven.maxhenkel.de/repository/public' }
 }
 
 configurations {
@@ -52,6 +54,7 @@ jarJar.register()
 dependencies {
 	implementation minecraft.dependency("net.minecraftforge:forge:${project.forge_1211_minecraft_version}-${project.forge_1211_loader_version}")
 	compileOnly 'org.jetbrains:annotations:24.1.0'
+	compileOnly 'de.maxhenkel.voicechat:voicechat-api:2.6.0'
 	testImplementation 'junit:junit:4.13.2'
 
 	// JarJar packages directly declared dependencies, so list the complete
@@ -92,7 +95,7 @@ tasks.withType(JavaCompile).configureEach {
 processResources {
 	inputs.property 'version', project.version
 	// Shared code references this namespace for its fallback texture.
-	from(rootProject.file('client-common/src/main/resources/assets/fbx-player-models')) {
+	from(rootProject.file('common/src/main/resources/assets/fbx-player-models')) {
 		into 'assets/fbx-player-models-lite'
 	}
 	filesMatching('META-INF/mods.toml') {

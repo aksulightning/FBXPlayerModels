@@ -6,10 +6,13 @@ from pathlib import Path
 import re
 import shutil
 import sys
+import uuid
 
 ROOT = Path(__file__).resolve().parents[2]
+CLIENT_FABRIC_TARGET = 'fabric-1.21.1-client'
 TARGETS = {
     'fabric-1.21.1': ('1.21.1', 'fabric', '21', 'remapJar', 'fabric_1211_mod_version', 'nightly-1.21.1'),
+    CLIENT_FABRIC_TARGET: ('1.21.1', 'fabric', '21', 'remapJar', 'fabric_1211_client_mod_version', 'nightly-fabric-client-1.21.1'),
     'fabric-26.2': ('26.2', 'fabric', '25', 'jar', 'fabric_262_mod_version', 'nightly-26.2'),
     'forge-1.21.1': ('1.21.1', 'forge', '21', 'jarJar', 'forge_1211_mod_version', 'nightly-forge-1.21.1'),
     'fabric-b1.7.3': ('b1.7.3', 'babric', '21', 'remapJar', 'fabric_b173_mod_version', 'nightly-b1.7.3'),
@@ -25,7 +28,8 @@ def metadata(target):
             properties[key.strip()] = value.strip()
     base = properties['archives_base_name']
     version = properties[version_key]
-    filename = f"{base}{'-forge' if loader == 'forge' else ''}-v{version}+mc{minecraft}.jar"
+    variant = '-client' if target == CLIENT_FABRIC_TARGET else '-forge' if loader == 'forge' else ''
+    filename = f"{base}{variant}-v{version}+mc{minecraft}.jar"
     return {
         'target': target, 'minecraft': minecraft, 'loader': loader, 'java': java,
         'task': f':{target}:{task}', 'filename': filename,
@@ -36,7 +40,17 @@ def metadata(target):
 
 def output(key, value):
     with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
-        stream.write(f'{key}={value}\n')
+        if '\n' in value or '\r' in value:
+            delimiter = f'release_output_{uuid.uuid4().hex}'
+            stream.write(f'{key}<<{delimiter}\n{value}\n{delimiter}\n')
+        else:
+            stream.write(f'{key}={value}\n')
+
+
+def target_release_note(target):
+    if target == CLIENT_FABRIC_TARGET:
+        return (ROOT / 'release-notes/fabric-1.21.1-client.md').read_text().strip()
+    return ''
 
 
 def main():
@@ -57,7 +71,7 @@ def main():
         bundle = ROOT / '.release' / target
         bundle.mkdir(parents=True, exist_ok=False)
         shutil.copy2(jar, bundle / jar.name)
-        manifest = dict(expected, commit=commit, source_branch=os.environ.get('BUILD_SOURCE_BRANCH', 'modrinth-last-update'),
+        manifest = dict(expected, commit=commit, source_branch=os.environ['BUILD_SOURCE_BRANCH'],
                         repository=os.environ['GITHUB_REPOSITORY'],
                         run_id=os.environ['GITHUB_RUN_ID'],
                         sha256=hashlib.sha256(jar.read_bytes()).hexdigest())
@@ -82,7 +96,7 @@ def verify_bundle(target):
     required = {
         'commit': os.environ['BUILD_COMMIT'], 'run_id': os.environ['BUILD_RUN_ID'],
         'repository': os.environ['GITHUB_REPOSITORY'],
-        'source_branch': os.environ.get('BUILD_SOURCE_BRANCH', 'modrinth-last-update'),
+        'source_branch': os.environ['BUILD_SOURCE_BRANCH'],
     }
     for key, value in required.items():
         if manifest.get(key) != value:
@@ -95,16 +109,21 @@ def verify_bundle(target):
         raise ValueError('Invalid release version characters')
     if version != expected['release_version']:
         raise ValueError(f"Artifact was built as {expected['release_version']}; build a new jar to change its version")
-    version_number = f"{version}+{expected['loader']}.{expected['minecraft']}"
+    label = 'fabric-client' if target == CLIENT_FABRIC_TARGET else expected['loader']
+    version_number = f"{version}+{label}.{expected['minecraft']}"
     if len(version_number) > 32:
         raise ValueError('Modrinth version including loader/game suffix exceeds 32 characters')
     notes = os.environ.get('RELEASE_NOTES', '').strip()
+    target_notes = target_release_note(target)
+    if target_notes:
+        notes = '\n\n'.join(part for part in [notes, target_notes] if part)
     notes += f"\n\nSource commit: {manifest['commit']}\nSHA-256: {manifest['sha256']}\n"
     (bundle / 'release-notes.md').write_text(notes)
     return {
         'file': str(jar.relative_to(ROOT)), 'loader': expected['loader'],
         'minecraft': expected['minecraft'], 'version': version_number,
-        'title': f"FBX Player Models {version} ({expected['loader']} {expected['minecraft']})",
+        'title': f"FBX Player Models {version} ({label} {expected['minecraft']})",
+        'changelog': notes,
     }
 
 
