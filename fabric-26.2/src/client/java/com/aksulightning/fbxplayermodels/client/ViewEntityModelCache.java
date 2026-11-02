@@ -5,6 +5,7 @@ import me.onethecrazy.FBXPlayerModelsMod;
 import me.onethecrazy.util.FileUtil;
 import me.onethecrazy.util.ModelNormalizer;
 import me.onethecrazy.util.network.BackendInteractor;
+import me.onethecrazy.util.network.LanSession;
 import me.onethecrazy.util.objects.CacheSkin;
 import me.onethecrazy.util.parsing.ParsingFormat;
 import me.onethecrazy.util.parsing.UniversalParser;
@@ -18,12 +19,14 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class ViewEntityModelCache {
     private static final Map<String, CacheSkin> CACHE = new ConcurrentHashMap<>();
+    private static long generation;
     private static final Set<String> REQUESTED = ConcurrentHashMap.newKeySet();
 
     private ViewEntityModelCache() {
     }
 
     public static @Nullable CacheSkin get(String rawModel) {
+        if (!LanSession.isAllowed()) return null;
         String model = ViewEntityModelPath.safeModelOrEmpty(rawModel);
         if (model.isBlank()) {
             return null;
@@ -33,9 +36,18 @@ public final class ViewEntityModelCache {
             return cached;
         }
         if (REQUESTED.add(model)) {
-            BackendInteractor.getMobModelData(model, data -> receive(model, data));
+            long requestedGeneration = generation;
+            BackendInteractor.getMobModelData(model, data -> {
+                if (requestedGeneration == generation && LanSession.isAllowed()) receive(model, data);
+            });
         }
         return null;
+    }
+
+    public static void clear() {
+        generation++;
+        CACHE.clear();
+        REQUESTED.clear();
     }
 
     private static void receive(String model, byte[] data) {

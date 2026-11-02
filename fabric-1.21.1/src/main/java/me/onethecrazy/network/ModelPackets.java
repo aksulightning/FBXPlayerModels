@@ -26,6 +26,16 @@ public final class ModelPackets {
         return Identifier.of(FBXPlayerModels.MOD_ID, path);
     }
 
+    public record LanSessionPayload(int protocol) implements CustomPayload {
+        public static final Id<LanSessionPayload> ID = new Id<>(id("lan_session"));
+        public static final PacketCodec<RegistryByteBuf, LanSessionPayload> CODEC = PacketCodec.ofStatic(
+                (buf, payload) -> buf.writeVarInt(payload.protocol()),
+                buf -> new LanSessionPayload(buf.readVarInt()));
+
+        @Override
+        public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
     public record UploadModelPayload(String fileName, String format, byte[] data) implements CustomPayload {
         public static final Id<UploadModelPayload> ID = new Id<>(id("upload_model"));
         public static final PacketCodec<RegistryByteBuf, UploadModelPayload> CODEC = PacketCodec.ofStatic(

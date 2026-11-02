@@ -1,5 +1,7 @@
 package me.onethecrazy.mixin.client;
 
+import me.onethecrazy.util.network.LanSession;
+
 import me.onethecrazy.FBXPlayerModelsClient;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
@@ -19,7 +21,7 @@ public abstract class CameraMixin {
     @Inject(method = "update", at = @At("TAIL"))
     private void fbx_player_models$applyFirstPersonCameraOffset(BlockView area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float tickDelta, CallbackInfo ci) {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (!FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()
+        if (!LanSession.isAllowed() || !FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()
                 || !FBXPlayerModelsClient.options().renderSelfModelInFirstPerson
                 || thirdPerson
                 || !(focusedEntity instanceof ClientPlayerEntity)

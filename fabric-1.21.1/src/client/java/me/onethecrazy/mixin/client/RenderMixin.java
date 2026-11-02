@@ -1,5 +1,7 @@
 package me.onethecrazy.mixin.client;
 
+import me.onethecrazy.util.network.LanSession;
+
 import me.onethecrazy.FBXPlayerModelsMod;
 import me.onethecrazy.FBXPlayerModelsClient;
 import me.onethecrazy.SkinManager;
@@ -46,7 +48,7 @@ public abstract class RenderMixin <T extends LivingEntity> implements LivingEnti
         if(livingEntity instanceof AbstractClientPlayerEntity renderedPlayer){
             player = renderedPlayer;
 
-            if(!FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled())
+            if(!LanSession.isRenderingAllowed() || !FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled())
                 return;
 
             String uuid;

@@ -1,0 +1,33 @@
+plugins {
+	id 'java-library'
+}
+
+group = rootProject.maven_group
+version = rootProject.mod_version
+
+sourceSets.main.java.srcDir rootProject.file('session-policy/src/main/java')
+sourceSets.test.java.srcDir rootProject.file('session-policy/src/test/java')
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	api "org.joml:joml:1.10.8"
+	compileOnly "org.jetbrains:annotations:24.1.0"
+	testImplementation 'junit:junit:4.13.2'
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 17
+}
+
+java {
+	withSourcesJar()
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+
+	sourceCompatibility = JavaVersion.VERSION_17
+	targetCompatibility = JavaVersion.VERSION_17
+}

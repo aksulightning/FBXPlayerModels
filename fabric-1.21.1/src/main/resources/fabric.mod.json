@@ -1,10 +1,9 @@
-
 {
 	"schemaVersion": 1,
 	"id": "fbx-player-models",
 	"version": "${version}",
 	"name": "FBX Player Models",
-	"description": "Let's you use any 3D-Model as your skin",
+	"description": "FBX player and entity models for single-player and Open to LAN. Dedicated/public servers are unsupported.",
 	"authors": [
 		"1TheCrazy",
 		"Aksu Lightning"

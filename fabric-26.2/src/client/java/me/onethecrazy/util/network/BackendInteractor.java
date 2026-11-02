@@ -38,19 +38,24 @@ public final class BackendInteractor {
             return;
         }
         initialized = true;
+        LanSession.initialize();
+        ClientPlayNetworking.registerGlobalReceiver(ModelPackets.LanSessionPayload.TYPE, (payload, context) -> {
+            var handler = context.player().connection;
+            context.client().execute(() -> LanSession.approve(handler, payload.protocol()));
+        });
 
         ClientPlayNetworking.registerGlobalReceiver(ModelPackets.LookupResponsePayload.TYPE, (payload, context) ->
-                context.client().execute(() -> receiveLookup(payload)));
+                LanSession.receive(context.player().connection, () -> receiveLookup(payload)));
         ClientPlayNetworking.registerGlobalReceiver(ModelPackets.ModelDataPayload.TYPE, (payload, context) ->
-                context.client().execute(() -> receiveModel(payload)));
+                LanSession.receive(context.player().connection, () -> receiveModel(payload)));
         ClientPlayNetworking.registerGlobalReceiver(ModelPackets.MobModelDataPayload.TYPE, (payload, context) ->
-                context.client().execute(() -> receiveMobModel(payload)));
+                LanSession.receive(context.player().connection, () -> receiveMobModel(payload)));
         ClientPlayNetworking.registerGlobalReceiver(ModelPackets.UploadResultPayload.TYPE, (payload, context) ->
-                context.client().execute(() -> showMessage(payload.message())));
+                LanSession.receive(context.player().connection, () -> showMessage(payload.message())));
         ClientPlayNetworking.registerGlobalReceiver(ModelPackets.PlayerShapeSettingsPayload.TYPE, (payload, context) ->
-                context.client().execute(() -> SkinManager.acceptServerShapeSettings(payload.uuid(), payload.settings())));
+                LanSession.receive(context.player().connection, () -> SkinManager.acceptServerShapeSettings(payload.uuid(), payload.settings())));
         ClientPlayNetworking.registerGlobalReceiver(ModelPackets.PlayerVoiceLevelPayload.TYPE, (payload, context) ->
-                context.client().execute(() -> VoiceShapeClient.acceptRemoteLevel(payload.uuid(), payload.level())));
+                LanSession.receive(context.player().connection, () -> VoiceShapeClient.acceptRemoteLevel(payload.uuid(), payload.level())));
     }
 
     public static CompletableFuture<Map<String, LookupSkin>> getSkinIDs(List<String> uuids) {
@@ -113,7 +118,7 @@ public final class BackendInteractor {
     public static void setSkinData(String uuid, String fileName, byte[] data3d, ParsingFormat format, boolean quietWhenUnsupported) {
         if (!canSend(ModelPackets.UploadModelPayload.TYPE)) {
             if (!quietWhenUnsupported) {
-                showMessage("Upload denied: this server does not support FBX Player Models uploads.");
+                showMessage("Upload unavailable: use a compatible single-player or Open to LAN world.");
             }
             return;
         }
@@ -208,9 +213,30 @@ public final class BackendInteractor {
         }
     }
 
+    public static void resetSession() {
+        pendingShapeSettings = null;
+        lastShapeSync = 0L;
+        List<CompletableFuture<Map<String, LookupSkin>>> lookups;
+        List<Consumer<byte[]>> models = new ArrayList<>();
+        synchronized (LOOKUP_WAITERS) {
+            lookups = LOOKUP_WAITERS.values().stream().flatMap(List::stream).toList();
+            LOOKUP_WAITERS.clear();
+        }
+        synchronized (MODEL_WAITERS) {
+            MODEL_WAITERS.values().forEach(models::addAll);
+            MODEL_WAITERS.clear();
+        }
+        synchronized (MOB_MODEL_WAITERS) {
+            MOB_MODEL_WAITERS.values().forEach(models::addAll);
+            MOB_MODEL_WAITERS.clear();
+        }
+        lookups.forEach(future -> future.complete(Map.of()));
+        models.forEach(callback -> callback.accept(new byte[0]));
+    }
+
     private static boolean canSend(CustomPacketPayload.Type<?> type) {
         try {
-            return Minecraft.getInstance().getConnection() != null && ClientPlayNetworking.canSend(type);
+            return LanSession.isAllowed() && ClientPlayNetworking.canSend(type);
         } catch (RuntimeException e) {
             return false;
         }
