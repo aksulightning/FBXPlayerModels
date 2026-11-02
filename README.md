@@ -58,13 +58,19 @@ These require command permissions. Supported clients receive the named model fro
 
 ## Manual builds and releases
 
-Development for this release uses `modrinth-last-update`. Pushing changes does not trigger a build or publication.
+The manual release workflows use `modrinth-last-update`. Pushing changes does not immediately trigger a build or publication.
 
 In GitHub Actions, manually run **Manual release build** on `modrinth-last-update`, selecting one target or all four. Each artifact contains its production jar and a manifest recording its source commit and SHA-256 checksum. Download and review the artifacts first.
 
 To publish, separately run **Publish reviewed release** on the same branch. Supply the successful build run ID, reviewed target, version, channel, release notes, and destination. Publication uses the existing artifact without rebuilding. GitHub publication requires a new tag and never replaces an existing tag or release. Modrinth publication requires the repository secret `MODRINTH_TOKEN` and variable `MODRINTH_ID`.
 
 Local compilation commands, exact production filenames, toolchains, and the manual gameplay checklist are documented in [Code_Guide.md](Code_Guide.md). No build or publication is triggered by opening model settings or using the mod.
+
+## One-time scheduled alpha release
+
+A separate workflow targets **2 November 2026 at 13:00 Helsinki time (11:00 UTC)**. It must be committed and pushed with its supporting scripts to the default branch, `main`, before that time to activate the schedule. It builds all four variants, runs the configured Beta/Forge tests, verifies the artifacts, and publishes missing alpha versions to Modrinth after all builds succeed. It requires `MODRINTH_TOKEN` and `MODRINTH_ID`.
+
+The date guard prevents releases on any other day. GitHub may delay scheduled jobs, so publication follows the build/test completion rather than an exact 13:00 upload. **One-time alpha release 2026-11-02** also supports manual dispatch on `main` after 13:00 that same day if the scheduled event is missed. Existing matching versions are skipped; conflicting versions are never replaced.
 
 ## Credits
 

@@ -5,6 +5,7 @@ build/
 out/
 classes/
 .release/
+__pycache__/
 
 # eclipse
 

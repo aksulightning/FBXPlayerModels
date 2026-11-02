@@ -89,6 +89,22 @@ For GitHub, supply a new release tag. The workflow refuses existing tags and nev
 
 The workflows must be available to GitHub Actions and dispatched using the release branch. This implementation does not push, merge, publish, or register workflows remotely. Artifact download follows the [official download-artifact run-ID inputs](https://github.com/actions/download-artifact/tree/v5); Modrinth publication uses the [existing publisher's declared inputs](https://github.com/cloudnode-pro/modrinth-publish/blob/v2/action.yaml).
 
+## One-time automatic alpha release: 2 November 2026
+
+The user authorized one automatic Modrinth release today at **13:00 Europe/Helsinki**, which is **11:00 UTC on 2026-11-02**. This replaces the manual-only policy for this one release; the existing manual workflows remain available.
+
+`.github/workflows/scheduled-alpha-release.yml` runs from the repository's confirmed default branch, `main`, using cron `0 11 2 11 *`. GitHub cron has no year field, so `.github/scripts/scheduled_release.py` additionally enforces the complete local date and time: publication is allowed only on 2026-11-02 at/after 13:00 Helsinki and before the following local midnight. Future November 2 runs cannot publish. The manual dispatch option provides same-day recovery if GitHub misses the cron event; it cannot publish early or on another date.
+
+The scheduler starts all four production builds at the scheduled time using the exact triggering commit on `main`. Beta and Forge also run their configured regression tests. Publication waits for every build/test job to succeed, downloads all four production artifacts, and verifies their target/version/branch/commit/run/checksum metadata before any upload. `release_metadata.py` now exposes `verify_bundle()` for both manual and scheduled workflows and accepts an explicit `BUILD_SOURCE_BRANCH`; manual callers retain the original `modrinth-last-update` default, while this scheduled workflow supplies `main`.
+
+Preflight requires the existing repository secret `MODRINTH_TOKEN` and variable `MODRINTH_ID`. It reads the project's versions using the [Modrinth versions API](https://docs.modrinth.com/api/operations/getprojectversions/). An existing version is skipped only when it is a listed alpha with the same loader/game pair and identical SHA-512 file content. Conflicting files or metadata stop automatic publication; nothing is deleted or replaced. Only missing variants proceed to the existing Modrinth publish action with `channel: alpha`. This one-time workflow does not create GitHub releases or tags. Its concurrency group serializes reruns.
+
+Activation requires committing/pushing the workflow and supporting scripts to `main` before the scheduled time. Local configuration alone does not register a remote schedule; no commit/push or remote activation was performed by the agent. GitHub schedules run only from the default branch and may be delayed or dropped, particularly at the start of an hour, as documented in the [GitHub schedule reference](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule). Accordingly, **13:00 is the workflow start target**; Modrinth publication follows successful builds/tests and queue availability, and exact upload time is not guaranteed. If the cron event is missed, the same-day manual dispatch remains available.
+
+Focused scheduler tests can be run with `python3 -m unittest discover -s .github/scripts/tests -v`. They exercise the Helsinki/UTC boundary, same-day delays, midnight/next-year rejection, duplicate/conflicting Modrinth versions, and artifact branch/commit/run/version/checksum protections. All network calls and publication steps remain outside these unit tests.
+
+Validation on 2026-11-02: all 15 scheduler/artifact regression tests passed, and the prescribed four modern Fabric compilation tasks passed with JDK 26. No scheduled workflow, Modrinth upload, remote commit, or push was performed during this local validation.
+
 ## User-run gameplay checklist
 
 1. On each variant, select/edit a model in the main menu, enter single-player, and inspect player rendering, first-person behavior, and saved settings with models toggled on/off.

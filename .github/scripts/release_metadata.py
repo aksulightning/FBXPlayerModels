@@ -1,4 +1,4 @@
-"""Target definitions and artifact provenance for the manual release workflows."""
+"""Target definitions and artifact provenance shared by the release workflows."""
 import hashlib
 import json
 import os
@@ -57,7 +57,7 @@ def main():
         bundle = ROOT / '.release' / target
         bundle.mkdir(parents=True, exist_ok=False)
         shutil.copy2(jar, bundle / jar.name)
-        manifest = dict(expected, commit=commit, source_branch='modrinth-last-update',
+        manifest = dict(expected, commit=commit, source_branch=os.environ.get('BUILD_SOURCE_BRANCH', 'modrinth-last-update'),
                         repository=os.environ['GITHUB_REPOSITORY'],
                         run_id=os.environ['GITHUB_RUN_ID'],
                         sha256=hashlib.sha256(jar.read_bytes()).hexdigest())
@@ -68,6 +68,12 @@ def main():
 
     if operation != 'verify':
         raise ValueError('Unknown metadata operation')
+    for key, value in verify_bundle(target).items():
+        output(key, value)
+
+
+def verify_bundle(target):
+    expected = metadata(target)
     bundle = ROOT / '.release' / target
     manifest = json.loads((bundle / 'release-manifest.json').read_text())
     for key, value in expected.items():
@@ -75,7 +81,8 @@ def main():
             raise ValueError(f'Artifact metadata mismatch: {key}')
     required = {
         'commit': os.environ['BUILD_COMMIT'], 'run_id': os.environ['BUILD_RUN_ID'],
-        'repository': os.environ['GITHUB_REPOSITORY'], 'source_branch': 'modrinth-last-update',
+        'repository': os.environ['GITHUB_REPOSITORY'],
+        'source_branch': os.environ.get('BUILD_SOURCE_BRANCH', 'modrinth-last-update'),
     }
     for key, value in required.items():
         if manifest.get(key) != value:
@@ -91,14 +98,14 @@ def main():
     version_number = f"{version}+{expected['loader']}.{expected['minecraft']}"
     if len(version_number) > 32:
         raise ValueError('Modrinth version including loader/game suffix exceeds 32 characters')
-    output('file', str(jar.relative_to(ROOT)))
-    output('loader', expected['loader'])
-    output('minecraft', expected['minecraft'])
-    output('version', version_number)
-    output('title', f"FBX Player Models {version} ({expected['loader']} {expected['minecraft']})")
     notes = os.environ.get('RELEASE_NOTES', '').strip()
     notes += f"\n\nSource commit: {manifest['commit']}\nSHA-256: {manifest['sha256']}\n"
     (bundle / 'release-notes.md').write_text(notes)
+    return {
+        'file': str(jar.relative_to(ROOT)), 'loader': expected['loader'],
+        'minecraft': expected['minecraft'], 'version': version_number,
+        'title': f"FBX Player Models {version} ({expected['loader']} {expected['minecraft']})",
+    }
 
 
 if __name__ == '__main__':
