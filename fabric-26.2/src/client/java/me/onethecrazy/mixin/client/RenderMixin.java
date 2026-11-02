@@ -1,5 +1,7 @@
 package me.onethecrazy.mixin.client;
 
+import me.onethecrazy.util.network.LanSession;
+
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
@@ -54,7 +56,7 @@ public abstract class RenderMixin implements LivingEntityRenderExtension {
         }
 
         state.setData(CustomSkinRenderData.KEY, null);
-        if (!FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()) {
+        if (!LanSession.isRenderingAllowed() || !FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()) {
             return;
         }
 
@@ -110,7 +112,7 @@ public abstract class RenderMixin implements LivingEntityRenderExtension {
     @Inject(method = "submit(Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V", at = @At("HEAD"), cancellable = true)
     private void fbx_player_models$submitCustomModel(LivingEntityRenderState state, PoseStack poseStack, SubmitNodeCollector submitNodeCollector, CameraRenderState cameraRenderState, CallbackInfo ci) {
         CustomSkinRenderData renderData = state.getData(CustomSkinRenderData.KEY);
-        if (renderData == null) {
+        if (!LanSession.isRenderingAllowed() || renderData == null) {
             return;
         }
 

@@ -1,5 +1,7 @@
 package me.onethecrazy.util.render;
 
+import me.onethecrazy.util.network.LanSession;
+
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
@@ -96,7 +98,7 @@ public final class FirstPersonSelfModelRenderer {
 
     private static boolean isRenderAllowed(LocalPlayer player) {
         Minecraft minecraft = Minecraft.getInstance();
-        return FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()
+        return LanSession.isAllowed() && FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()
                 && FBXPlayerModelsClient.options().renderSelfModelInFirstPerson
                 && minecraft.getCameraEntity() == player
                 && minecraft.options.getCameraType() == CameraType.FIRST_PERSON

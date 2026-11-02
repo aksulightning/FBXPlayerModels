@@ -5,6 +5,8 @@ plugins {
 group = rootProject.maven_group
 version = rootProject.mod_version
 
+sourceSets.main.java.srcDir rootProject.file('session-policy/src/main/java')
+
 repositories {
 	mavenCentral()
 	maven { url = 'https://maven.maxhenkel.de/repository/public' }

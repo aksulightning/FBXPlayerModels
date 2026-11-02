@@ -1,5 +1,7 @@
 package me.onethecrazy.util.render;
 
+import me.onethecrazy.util.network.LanSession;
+
 import com.aksulightning.fbxplayermodels.voice.VoiceAudioInput;
 import com.aksulightning.fbxplayermodels.voice.VoiceShapePose;
 import com.aksulightning.fbxplayermodels.voice.VoiceShapeSettings;
@@ -38,8 +40,8 @@ public final class VoiceShapeClient {
             }
             BackendInteractor.flushShapeSettings();
             VoiceAudioInput.configure(options.selectedSkin.voiceShapeSettings(), VOICE_CHAT_INSTALLED,
-                    (client.player != null && options.areFbxPlayerModelsEnabled()) || client.gui.screen() instanceof VoiceShapeSettingsScreen);
-            boolean transmit = client.player != null && options.areFbxPlayerModelsEnabled()
+                    (client.player != null && LanSession.isAllowed() && options.areFbxPlayerModelsEnabled()) || client.gui.screen() instanceof VoiceShapeSettingsScreen);
+            boolean transmit = client.player != null && LanSession.isAllowed() && options.areFbxPlayerModelsEnabled()
                     && options.selectedSkin.voiceShapeSettings().enabled();
             sendLocalLevel(transmit ? VoiceAudioInput.level() : 0f, transmit);
         });
@@ -109,7 +111,7 @@ public final class VoiceShapeClient {
                 / (float) (REMOTE_LEVEL_EXPIRE_NANOS - REMOTE_LEVEL_HOLD_NANOS);
     }
 
-    private static void clearNetworkState() {
+    public static void clearNetworkState() {
         REMOTE_LEVELS.clear();
         lastSentLevel = Float.NaN;
         lastVoiceSend = 0L;

@@ -1,5 +1,7 @@
 package me.onethecrazy.mixin.client;
 
+import me.onethecrazy.util.network.LanSession;
+
 import me.onethecrazy.FBXPlayerModelsClient;
 import net.minecraft.client.Camera;
 import net.minecraft.client.CameraType;
@@ -22,7 +24,7 @@ public abstract class CameraMixin {
     private void fbx_player_models$applyFirstPersonCameraOffset(DeltaTracker deltaTracker, CallbackInfo ci) {
         Minecraft minecraft = Minecraft.getInstance();
         Entity focusedEntity = entity();
-        if (!FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()
+        if (!LanSession.isAllowed() || !FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()
                 || !FBXPlayerModelsClient.options().renderSelfModelInFirstPerson
                 || minecraft.options.getCameraType() != CameraType.FIRST_PERSON
                 || !(focusedEntity instanceof LocalPlayer)

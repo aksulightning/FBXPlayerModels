@@ -1,6 +1,9 @@
 package me.onethecrazy.server;
 
 import com.aksulightning.fbxplayermodels.model.shape.ShapeKeySyncState;
+import com.aksulightning.fbxplayermodels.network.LanAddressPolicy;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import me.onethecrazy.FBXPlayerModelsMod;
 import me.onethecrazy.network.ModelPackets;
@@ -18,6 +21,7 @@ import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
+import net.minecraft.network.packet.CustomPayload;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -34,6 +38,11 @@ public final class ServerModelNetworking {
     }
 
     public static void initialize() {
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+            STORES.remove(server);
+            LAST_VOICE_PACKETS.remove(server);
+        });
+        PayloadTypeRegistry.playS2C().register(ModelPackets.LanSessionPayload.ID, ModelPackets.LanSessionPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ModelPackets.UploadModelPayload.ID, ModelPackets.UploadModelPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ModelPackets.RequestLookupPayload.ID, ModelPackets.RequestLookupPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(ModelPackets.RequestModelPayload.ID, ModelPackets.RequestModelPayload.CODEC);
@@ -60,9 +69,17 @@ public final class ServerModelNetworking {
         ServerPlayNetworking.registerGlobalReceiver(ModelPackets.VoiceLevelPayload.ID, (payload, context) ->
                 context.server().execute(() -> handleVoiceLevel(context.player(), payload)));
 
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            if (isAllowed(server, handler.player)
+                    && ServerPlayNetworking.canSend(handler.player, ModelPackets.LanSessionPayload.ID)) {
+                ServerPlayNetworking.send(handler.player,
+                        new ModelPackets.LanSessionPayload(LanAddressPolicy.PROTOCOL_VERSION));
+            }
+        });
+
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
                 dispatcher.register(CommandManager.literal("fbxplayermodels")
-                        .requires(source -> source.hasPermissionLevel(2))
+                        .requires(source -> !source.getServer().isDedicated() && source.hasPermissionLevel(2))
                         .then(CommandManager.literal("uploadperm")
                                 .then(CommandManager.argument("playername", StringArgumentType.word())
                                         .then(CommandManager.literal("yes").executes(context -> setUploadPerm(context.getSource(), StringArgumentType.getString(context, "playername"), true)))
@@ -70,9 +87,10 @@ public final class ServerModelNetworking {
     }
 
     private static void handleUpload(ServerPlayerEntity player, ModelPackets.UploadModelPayload payload) {
+        if (!isAllowed(player.getServer(), player)) return;
         ServerModelStore store = store(player.getServer());
         ServerModelStore.UploadSaveResult result = store.saveUpload(player, payload.fileName(), payload.format(), payload.data());
-        ServerPlayNetworking.send(player, new UploadResultPayload(result.success(), result.message()));
+        sendTo(player, new UploadResultPayload(result.success(), result.message()));
 
         if (result.success() && result.model() != null) {
             broadcastModelState(player.getServer(), result.model());
@@ -80,6 +98,7 @@ public final class ServerModelNetworking {
     }
 
     private static void handleLookup(ServerPlayerEntity player, ModelPackets.RequestLookupPayload payload) {
+        if (!isAllowed(player.getServer(), player)) return;
         ServerModelStore store = store(player.getServer());
         Map<String, ModelLookup> response = new HashMap<>();
         for (String uuid : payload.uuids()) {
@@ -87,46 +106,50 @@ public final class ServerModelNetworking {
                     .map(model -> new ModelLookup(model.hash(), model.format()))
                     .orElseGet(() -> new ModelLookup("", "")));
         }
-        ServerPlayNetworking.send(player, new LookupResponsePayload(response));
+        sendTo(player, new LookupResponsePayload(response));
         for (String uuid : payload.uuids()) {
-            ServerPlayNetworking.send(player, new ModelPackets.PlayerShapeSettingsPayload(uuid, store.shapeSettings(uuid)));
+            sendTo(player, new ModelPackets.PlayerShapeSettingsPayload(uuid, store.shapeSettings(uuid)));
         }
     }
 
     private static void handleModelRequest(ServerPlayerEntity player, ModelPackets.RequestModelPayload payload) {
+        if (!isAllowed(player.getServer(), player)) return;
         try {
             byte[] data = store(player.getServer()).readModel(payload.hash(), payload.format()).orElse(null);
             if (data == null) {
-                ServerPlayNetworking.send(player, new ModelDataPayload(payload.hash(), payload.format(), new byte[0], "Model not found."));
+                sendTo(player, new ModelDataPayload(payload.hash(), payload.format(), new byte[0], "Model not found."));
                 return;
             }
-            ServerPlayNetworking.send(player, new ModelDataPayload(payload.hash(), payload.format(), data, "Saved successfully."));
+            sendTo(player, new ModelDataPayload(payload.hash(), payload.format(), data, "Saved successfully."));
         } catch (IOException e) {
             FBXPlayerModelsMod.LOGGER.error("Server-side failure while reading model", e);
-            ServerPlayNetworking.send(player, new ModelDataPayload(payload.hash(), payload.format(), new byte[0], "Server-side failure: could not read model."));
+            sendTo(player, new ModelDataPayload(payload.hash(), payload.format(), new byte[0], "Server-side failure: could not read model."));
         }
     }
 
     private static void handleMobModelRequest(ServerPlayerEntity player, ModelPackets.RequestMobModelPayload payload) {
+        if (!isAllowed(player.getServer(), player)) return;
         try {
             byte[] data = store(player.getServer()).readMobModel(payload.model()).orElse(null);
             if (data == null) {
-                ServerPlayNetworking.send(player, new MobModelDataPayload(payload.model(), new byte[0], "Mob model not found."));
+                sendTo(player, new MobModelDataPayload(payload.model(), new byte[0], "Mob model not found."));
                 return;
             }
-            ServerPlayNetworking.send(player, new MobModelDataPayload(payload.model(), data, "Saved successfully."));
+            sendTo(player, new MobModelDataPayload(payload.model(), data, "Saved successfully."));
         } catch (IOException e) {
             FBXPlayerModelsMod.LOGGER.error("Server-side failure while reading mob model", e);
-            ServerPlayNetworking.send(player, new MobModelDataPayload(payload.model(), new byte[0], "Server-side failure: could not read mob model."));
+            sendTo(player, new MobModelDataPayload(payload.model(), new byte[0], "Server-side failure: could not read mob model."));
         }
     }
 
     private static void handleShapeSettings(ServerPlayerEntity player, ModelPackets.UpdateShapeSettingsPayload payload) {
+        if (!isAllowed(player.getServer(), player)) return;
         store(player.getServer()).updateShapeSettings(player, payload.settings())
                 .ifPresent(settings -> broadcastShapeSettings(player.getServer(), player.getUuidAsString(), settings));
     }
 
     private static void handleVoiceLevel(ServerPlayerEntity sender, ModelPackets.VoiceLevelPayload payload) {
+        if (!isAllowed(sender.getServer(), sender)) return;
         if (!Float.isFinite(payload.level()) || store(sender.getServer()).lookup(sender.getUuidAsString()).isEmpty()) return;
         long now = System.nanoTime();
         Map<UUID, Long> serverPackets = LAST_VOICE_PACKETS.computeIfAbsent(sender.getServer(), ignored -> new WeakHashMap<>());
@@ -137,7 +160,7 @@ public final class ServerModelNetworking {
         float level = Math.max(0f, Math.min(1f, payload.level()));
         ModelPackets.PlayerVoiceLevelPayload relayed = new ModelPackets.PlayerVoiceLevelPayload(sender.getUuidAsString(), level);
         for (ServerPlayerEntity player : PlayerLookup.tracking(sender)) {
-            ServerPlayNetworking.send(player, relayed);
+            sendTo(player, relayed);
         }
     }
 
@@ -160,7 +183,7 @@ public final class ServerModelNetworking {
     private static void broadcastLookup(MinecraftServer server, ServerModelStore.StoredModel model) {
         LookupResponsePayload payload = new LookupResponsePayload(Map.of(model.uuid(), new ModelLookup(model.hash(), model.format())));
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            ServerPlayNetworking.send(player, payload);
+            sendTo(player, payload);
         }
     }
 
@@ -173,6 +196,19 @@ public final class ServerModelNetworking {
                                                ShapeKeySyncState settings) {
         ModelPackets.PlayerShapeSettingsPayload payload = new ModelPackets.PlayerShapeSettingsPayload(uuid, settings);
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            sendTo(player, payload);
+        }
+    }
+
+    private static boolean isAllowed(MinecraftServer server, ServerPlayerEntity player) {
+        return server != null && !server.isDedicated()
+                && (server.isHost(player.getGameProfile()) || LanAddressPolicy.isLanAddress(player.networkHandler.getConnectionAddress()));
+    }
+
+    private static void sendTo(ServerPlayerEntity player, CustomPayload payload) {
+        if (isAllowed(player.getServer(), player)
+                && ServerPlayNetworking.canSend(player, ModelPackets.LanSessionPayload.ID)
+                && ServerPlayNetworking.canSend(player, payload.getId())) {
             ServerPlayNetworking.send(player, payload);
         }
     }

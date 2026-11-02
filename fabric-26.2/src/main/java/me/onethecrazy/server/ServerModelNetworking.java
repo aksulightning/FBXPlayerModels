@@ -1,6 +1,9 @@
 package me.onethecrazy.server;
 
 import com.aksulightning.fbxplayermodels.model.shape.ShapeKeySyncState;
+import com.aksulightning.fbxplayermodels.network.LanAddressPolicy;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import me.onethecrazy.FBXPlayerModelsMod;
 import me.onethecrazy.network.ModelPackets;
@@ -16,6 +19,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.LevelBasedPermissionSet;
@@ -36,6 +40,11 @@ public final class ServerModelNetworking {
     }
 
     public static void initialize() {
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+            STORES.remove(server);
+            LAST_VOICE_PACKETS.remove(server);
+        });
+        PayloadTypeRegistry.clientboundPlay().register(ModelPackets.LanSessionPayload.TYPE, ModelPackets.LanSessionPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().registerLarge(ModelPackets.UploadModelPayload.TYPE, ModelPackets.UploadModelPayload.CODEC, ModelPackets.MAX_MODEL_BYTES + 512);
         PayloadTypeRegistry.serverboundPlay().register(ModelPackets.RequestLookupPayload.TYPE, ModelPackets.RequestLookupPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(ModelPackets.RequestModelPayload.TYPE, ModelPackets.RequestModelPayload.CODEC);
@@ -64,6 +73,14 @@ public final class ServerModelNetworking {
         ServerPlayNetworking.registerGlobalReceiver(ModelPackets.VoiceLevelPayload.TYPE, (payload, context) ->
                 context.server().execute(() -> handleVoiceLevel(context.server(), context.player(), payload)));
 
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            if (isAllowed(server, handler.player)
+                    && ServerPlayNetworking.canSend(handler.player, ModelPackets.LanSessionPayload.TYPE)) {
+                ServerPlayNetworking.send(handler.player,
+                        new ModelPackets.LanSessionPayload(LanAddressPolicy.PROTOCOL_VERSION));
+            }
+        });
+
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
                 dispatcher.register(Commands.literal("fbxplayermodels")
                         .requires(ServerModelNetworking::hasAdministratorRights)
@@ -74,9 +91,10 @@ public final class ServerModelNetworking {
     }
 
     private static void handleUpload(MinecraftServer server, ServerPlayer player, ModelPackets.UploadModelPayload payload) {
+        if (!isAllowed(server, player)) return;
         ServerModelStore store = store(server);
         ServerModelStore.UploadSaveResult result = store.saveUpload(player, payload.fileName(), payload.format(), payload.data());
-        ServerPlayNetworking.send(player, new UploadResultPayload(result.success(), result.message()));
+        sendTo(server, player, new UploadResultPayload(result.success(), result.message()));
 
         if (result.success() && result.model() != null) {
             broadcastModelState(server, result.model());
@@ -84,6 +102,7 @@ public final class ServerModelNetworking {
     }
 
     private static void handleLookup(MinecraftServer server, ServerPlayer player, ModelPackets.RequestLookupPayload payload) {
+        if (!isAllowed(server, player)) return;
         ServerModelStore store = store(server);
         Map<String, ModelLookup> response = new HashMap<>();
         for (String uuid : payload.uuids()) {
@@ -91,48 +110,52 @@ public final class ServerModelNetworking {
                     .map(model -> new ModelLookup(model.hash(), model.format()))
                     .orElseGet(() -> new ModelLookup("", "")));
         }
-        ServerPlayNetworking.send(player, new LookupResponsePayload(response));
+        sendTo(server, player, new LookupResponsePayload(response));
         for (String uuid : payload.uuids()) {
-            ServerPlayNetworking.send(player, new ModelPackets.PlayerShapeSettingsPayload(uuid, store.shapeSettings(uuid)));
+            sendTo(server, player, new ModelPackets.PlayerShapeSettingsPayload(uuid, store.shapeSettings(uuid)));
         }
     }
 
     private static void handleModelRequest(MinecraftServer server, ServerPlayer player, ModelPackets.RequestModelPayload payload) {
+        if (!isAllowed(server, player)) return;
         try {
             byte[] data = store(server).readModel(payload.hash(), payload.format()).orElse(null);
             if (data == null) {
-                ServerPlayNetworking.send(player, new ModelDataPayload(payload.hash(), payload.format(), new byte[0], "Model not found."));
+                sendTo(server, player, new ModelDataPayload(payload.hash(), payload.format(), new byte[0], "Model not found."));
                 return;
             }
-            ServerPlayNetworking.send(player, new ModelDataPayload(payload.hash(), payload.format(), data, "Saved successfully."));
+            sendTo(server, player, new ModelDataPayload(payload.hash(), payload.format(), data, "Saved successfully."));
         } catch (IOException e) {
             FBXPlayerModelsMod.LOGGER.error("Server-side failure while reading model", e);
-            ServerPlayNetworking.send(player, new ModelDataPayload(payload.hash(), payload.format(), new byte[0], "Server-side failure: could not read model."));
+            sendTo(server, player, new ModelDataPayload(payload.hash(), payload.format(), new byte[0], "Server-side failure: could not read model."));
         }
     }
 
     private static void handleMobModelRequest(MinecraftServer server, ServerPlayer player, ModelPackets.RequestMobModelPayload payload) {
+        if (!isAllowed(server, player)) return;
         try {
             byte[] data = store(server).readMobModel(payload.model()).orElse(null);
             if (data == null) {
-                ServerPlayNetworking.send(player, new MobModelDataPayload(payload.model(), new byte[0], "Mob model not found."));
+                sendTo(server, player, new MobModelDataPayload(payload.model(), new byte[0], "Mob model not found."));
                 return;
             }
-            ServerPlayNetworking.send(player, new MobModelDataPayload(payload.model(), data, "Saved successfully."));
+            sendTo(server, player, new MobModelDataPayload(payload.model(), data, "Saved successfully."));
         } catch (IOException e) {
             FBXPlayerModelsMod.LOGGER.error("Server-side failure while reading mob model", e);
-            ServerPlayNetworking.send(player, new MobModelDataPayload(payload.model(), new byte[0], "Server-side failure: could not read mob model."));
+            sendTo(server, player, new MobModelDataPayload(payload.model(), new byte[0], "Server-side failure: could not read mob model."));
         }
     }
 
     private static void handleShapeSettings(MinecraftServer server, ServerPlayer player,
                                             ModelPackets.UpdateShapeSettingsPayload payload) {
+        if (!isAllowed(server, player)) return;
         store(server).updateShapeSettings(player, payload.settings())
                 .ifPresent(settings -> broadcastShapeSettings(server, player.getUUID().toString(), settings));
     }
 
     private static void handleVoiceLevel(MinecraftServer server, ServerPlayer sender,
                                          ModelPackets.VoiceLevelPayload payload) {
+        if (!isAllowed(server, sender)) return;
         if (!Float.isFinite(payload.level()) || store(server).lookup(sender.getUUID().toString()).isEmpty()) return;
         long now = System.nanoTime();
         Map<UUID, Long> serverPackets = LAST_VOICE_PACKETS.computeIfAbsent(server, ignored -> new WeakHashMap<>());
@@ -143,7 +166,7 @@ public final class ServerModelNetworking {
         float level = Math.max(0f, Math.min(1f, payload.level()));
         ModelPackets.PlayerVoiceLevelPayload relayed = new ModelPackets.PlayerVoiceLevelPayload(sender.getUUID().toString(), level);
         for (ServerPlayer player : PlayerLookup.tracking(sender)) {
-            ServerPlayNetworking.send(player, relayed);
+            sendTo(server, player, relayed);
         }
     }
 
@@ -166,7 +189,7 @@ public final class ServerModelNetworking {
     private static void broadcastLookup(MinecraftServer server, ServerModelStore.StoredModel model) {
         LookupResponsePayload payload = new LookupResponsePayload(Map.of(model.uuid(), new ModelLookup(model.hash(), model.format())));
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            ServerPlayNetworking.send(player, payload);
+            sendTo(server, player, payload);
         }
     }
 
@@ -179,6 +202,19 @@ public final class ServerModelNetworking {
                                                ShapeKeySyncState settings) {
         ModelPackets.PlayerShapeSettingsPayload payload = new ModelPackets.PlayerShapeSettingsPayload(uuid, settings);
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            sendTo(server, player, payload);
+        }
+    }
+
+    private static boolean isAllowed(MinecraftServer server, ServerPlayer player) {
+        return server != null && !server.isDedicatedServer()
+                && (server.isSingleplayerOwner(player.nameAndId()) || LanAddressPolicy.isLanAddress(player.connection.getRemoteAddress()));
+    }
+
+    private static void sendTo(MinecraftServer server, ServerPlayer player, CustomPacketPayload payload) {
+        if (isAllowed(server, player)
+                && ServerPlayNetworking.canSend(player, ModelPackets.LanSessionPayload.TYPE)
+                && ServerPlayNetworking.canSend(player, payload.type())) {
             ServerPlayNetworking.send(player, payload);
         }
     }
@@ -188,7 +224,8 @@ public final class ServerModelNetworking {
     }
 
     private static boolean hasAdministratorRights(CommandSourceStack source) {
-        return source.permissions() instanceof LevelBasedPermissionSet permissionSet
+        return !source.getServer().isDedicatedServer()
+                && source.permissions() instanceof LevelBasedPermissionSet permissionSet
                 && permissionSet.level().isEqualOrHigherThan(PermissionLevel.GAMEMASTERS);
     }
 }

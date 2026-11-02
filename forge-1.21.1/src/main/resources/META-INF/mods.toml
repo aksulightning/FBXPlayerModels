@@ -1,0 +1,28 @@
+modLoader="javafml"
+loaderVersion="[52,)"
+license="MIT"
+clientSideOnly=true
+
+[[mods]]
+modId="fbx_player_models_lite"
+version="${version}"
+displayName="FBX Player Models (Client Only)"
+logoFile="assets/fbx-player-models/icon.png"
+authors="1TheCrazy, Aksu Lightning"
+displayURL="https://github.com/aksulightning/FBXPlayerModels"
+description='''Use a local FBX model for your own player in single-player and LAN. Client only; models are not shared.'''
+displayTest="IGNORE_ALL_VERSION"
+
+[[dependencies.fbx_player_models_lite]]
+modId="forge"
+mandatory=true
+versionRange="[52.1.0,53)"
+ordering="NONE"
+side="CLIENT"
+
+[[dependencies.fbx_player_models_lite]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.21.1,1.21.2)"
+ordering="NONE"
+side="CLIENT"

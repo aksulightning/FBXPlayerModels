@@ -2,6 +2,7 @@ package me.onethecrazy.screens;
 
 import me.onethecrazy.FBXPlayerModelsClient;
 import me.onethecrazy.SkinManager;
+import me.onethecrazy.util.network.LanSession;
 import me.onethecrazy.screens.editor.ModelBindingEditorScreen;
 import me.onethecrazy.screens.rendering.SkinPreviewRenderer;
 import me.onethecrazy.util.FileUtil;
@@ -120,7 +121,7 @@ public class ConfigScreen extends Screen {
 
     private void renderText(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         // Render the banner text
-        context.text(font, trimmed(FBXPlayerModelsClient.bannerText, getContentWidth()), getContentOriginX(), getCellOriginY() + getScreenFriendlyDimensions() + MARGIN, 0xFFFFFFFF, true);
+        context.text(font, trimmed(LanSession.statusText(), getContentWidth()), getContentOriginX(), getCellOriginY() + getScreenFriendlyDimensions() + MARGIN, 0xFFFFFFFF, true);
 
         CacheSkin cacheSkin = getSelfCacheSkin();
         int statusY = editorButton.getY() + BUTTON_HEIGHT + MARGIN;
@@ -263,7 +264,7 @@ public class ConfigScreen extends Screen {
     }
 
     @Unique private void updateUploadAgainButtonText(){
-        uploadAgainButton.active = !Objects.equals(FBXPlayerModelsClient.options().selectedSkin.hash, "");
+        uploadAgainButton.active = LanSession.isAllowed() && !Objects.equals(FBXPlayerModelsClient.options().selectedSkin.hash, "");
         uploadAgainButton.setMessage(Component.nullToEmpty(trimmed(Component.translatable("gui.fbxplayermodels.upload_again").getString(), uploadAgainButton.getWidth() - 12)));
     }
 

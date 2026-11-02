@@ -1,5 +1,7 @@
 package me.onethecrazy.util.render;
 
+import me.onethecrazy.util.network.LanSession;
+
 import me.onethecrazy.FBXPlayerModelsClient;
 import me.onethecrazy.SkinManager;
 import me.onethecrazy.util.objects.CacheSkin;
@@ -105,7 +107,7 @@ public final class FirstPersonSelfModelRenderer {
 
     private static boolean isRenderAllowed(ClientPlayerEntity player) {
         MinecraftClient client = MinecraftClient.getInstance();
-        return FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()
+        return LanSession.isAllowed() && FBXPlayerModelsClient.options().areFbxPlayerModelsEnabled()
                 && FBXPlayerModelsClient.options().renderSelfModelInFirstPerson
                 && client.getCameraEntity() == player
                 && client.options.getPerspective() == Perspective.FIRST_PERSON

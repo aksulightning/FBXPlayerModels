@@ -1,91 +1,71 @@
 # FBX Player Models
 
-Use a 3D model as your Minecraft player skin.
+Use an FBX model as your Minecraft player skin in single-player and LAN games.
 
-FBX Player Models lets you pick an `.fbx` model and show it on your player. Other players can see it too when they also have the mod installed.
+This release is experimental and made for playing with friends. Public multiplayer is outside its supported scope.
 
-This mod is experimental. It was made for fun, so some models may not work perfectly.
+## Release variants
 
-## Download
+| Minecraft | Loader | What other players see |
+| --- | --- | --- |
+| 1.21.1 | Fabric | Shared models in an **Open to LAN** world when host and guests run matching mod versions |
+| 26.2 | Fabric | Shared models in an **Open to LAN** world when host and guests run matching mod versions |
+| 1.21.1 | Forge | Your model is displayed only on your own client |
+| Beta 1.7.3 | Babric + StationAPI | Your model is displayed only on your own client |
 
-- [Minecraft 1.21.1 nightly](https://github.com/aksulightning/FBXPlayerModels/releases/tag/nightly-1.21.1)
-- [Minecraft 26.2 nightly](https://github.com/aksulightning/FBXPlayerModels/releases/tag/nightly-26.2)
+Forge and Beta are client-only variants. They require no server-side installation, send no model data, and do not make your model visible to friends. Their existing local configuration paths and saved selections are retained.
 
-Both downloads are experimental builds.
+Modern Fabric gameplay features activate in single-player or after a compatible integrated LAN host approves the connection. Dedicated servers are unsupported, even on a private address. Forge and Beta use the resolved peer address to allow local-network connections; a client-only mod cannot establish whether a private endpoint is a dedicated server, tunnel, VPN, or proxy. These checks are a support policy, not a security boundary.
 
-## What You Can Do
+## Use a model
 
-- Use an `.fbx` model instead of a normal Minecraft skin.
-- See your model on the main menu.
-- Change your model in game with `/skin`.
-- Use custom models on multiplayer servers.
-- Let server players upload models if they have permission.
+1. Install the correct variant and its loader dependencies. Beta also requires StationAPI.
+2. Start a single-player world or join a supported LAN game.
+3. Open the model settings through the title-screen preview or `/skin`.
+4. Choose an `.fbx` file under **2 MiB**.
+5. Open **Settings → Edit Model Rig** to adjust the rig. Start with **Auto Bind**, then correct individual bones as needed.
 
-## How To Use A Model
+Selections and editor settings save locally. Model editing and menu previews remain available when gameplay features are inactive on an unsupported connection. Unsupported connections continue to work normally in Minecraft, with vanilla player rendering and a status message.
 
-1. Install the mod.
-2. Join a world or server.
-3. Run `/skin`.
-4. Choose your `.fbx` file.
-5. Open **Edit Model Rig** if the arms, legs, head, or body do not move correctly.
-6. Use **Auto Bind** first. If needed, click each body part and choose the right bone by hand.
+Simple Blender models with clear bone names, few materials, and low geometry counts are the easiest starting point. A template is available in the [template branch](https://github.com/aksulightning/FBXPlayerModels/tree/template).
 
-Your settings are saved after you choose and edit your model.
+## Share models on Fabric LAN
 
-## Best Model Type
+The host opens a single-player world using **Open to LAN**. Host and guests install the matching Fabric mod version. Models and supported appearance settings are exchanged through that world's integrated server after the LAN session check succeeds.
 
-For the best chance of working, use a simple model exported from Blender.
+The host can upload without enabling cheats. Existing operator and guest upload permissions remain in effect. With the necessary command permissions, grant or remove guest upload permission using:
 
-Good models usually have:
-
-- Low detail.
-- One material.
-- A texture.
-- Clear bone names.
-- A file size under **2 MB**.
-
-The rig names like `Head`, `Chest`, `Right Arm`, `Left Arm`, `Right Leg`, and `Left Leg` can help the mod guess the right body parts.
-
-If you’re looking for a model template, you can find one here:
-
-[https://github.com/aksulightning/FBXPlayerModels/tree/template](https://github.com/aksulightning/FBXPlayerModels/tree/template)
-
-## Multiplayer Uploads
-
-Servers store uploaded models in the world save.
-
-The owner of a singleplayer world can upload without enabling cheats. On multiplayer servers, operators can upload models by default and can allow or block uploads for other players:
-
-Allow players:
-```
+```text
 /fbxplayermodels uploadperm <playername> yes
-```
-Deny players:
-```
 /fbxplayermodels uploadperm <playername> no
 ```
 
-Uploaded files must be **under 2 MB**.
+Model files must be strictly smaller than 2 MiB. Share models only with people you trust.
 
-## FBX Mobs
+The modern Fabric variants retain Default shape keys, Voice Shape, and FBX entity rendering. These full-mod features are not added to the imported client-only ports.
 
-The mod can also show FBX models on special entities.
+## FBX entities on modern Fabric
 
-Example commands:
+Place entity model files in the LAN world's `fbx-player-models/mobskins` directory. For example:
 
-```
+```text
 /summon fbxplayermodels:view_entity ~ ~ ~ {Model:"this_file.fbx"}
 /summon fbxplayermodels:hostile_entity ~ ~ ~ {Model:"this_file.fbx"}
 /summon fbxplayermodels:tameable_entity ~ ~ ~ {Model:"this_file.fbx",TameItem:"minecraft:apple"}
 ```
 
-The model file must already be on the server in its FBX mob model folder.
+These require command permissions. Supported clients receive the named model from the LAN host.
 
-## Help And Feedback
+## Manual builds and releases
 
-- [Report a bug or suggest an idea](https://github.com/aksulightning/FBXPlayerModels/issues)
-- [Contribute code](https://github.com/aksulightning/FBXPlayerModels/pulls)
+Development for this release uses `modrinth-last-update`. Pushing changes does not trigger a build or publication.
+
+In GitHub Actions, manually run **Manual release build** on `modrinth-last-update`, selecting one target or all four. Each artifact contains its production jar and a manifest recording its source commit and SHA-256 checksum. Download and review the artifacts first.
+
+To publish, separately run **Publish reviewed release** on the same branch. Supply the successful build run ID, reviewed target, version, channel, release notes, and destination. Publication uses the existing artifact without rebuilding. GitHub publication requires a new tag and never replaces an existing tag or release. Modrinth publication requires the repository secret `MODRINTH_TOKEN` and variable `MODRINTH_ID`.
+
+Local compilation commands, exact production filenames, toolchains, and the manual gameplay checklist are documented in [Code_Guide.md](Code_Guide.md). No build or publication is triggered by opening model settings or using the mod.
 
 ## Credits
 
-FBX Player Models is based on [AllTheSkins by 1TheCrazy](https://github.com/1TheCrazy/AllTheSkins).
+Based on [AllTheSkins by 1TheCrazy](https://github.com/1TheCrazy/AllTheSkins).

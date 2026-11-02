@@ -1,0 +1,117 @@
+plugins {
+	id 'java'
+	id 'net.minecraftforge.gradle' version "${forge_gradle_version}"
+	id 'net.minecraftforge.jarjar' version "${forge_jarjar_version}"
+}
+
+version = project.forge_1211_mod_version
+group = rootProject.maven_group
+
+base {
+	archivesName = "${rootProject.archives_base_name}-forge-1.21.1"
+}
+
+java {
+	withSourcesJar()
+	toolchain.languageVersion = JavaLanguageVersion.of(21)
+}
+
+// Compile shared sources into the same Forge module to avoid split Java packages.
+sourceSets.main {
+	java.srcDir rootProject.file('client-common/src/main/java')
+	java.srcDir rootProject.file('session-policy/src/main/java')
+	resources.srcDir rootProject.file('client-common/src/main/resources')
+}
+
+sourceSets.test.java.srcDir rootProject.file('session-policy/src/test/java')
+
+minecraft {
+	mappings channel: 'official', version: project.forge_1211_minecraft_version
+	runs {
+		configureEach {
+			workingDir = layout.projectDirectory.dir('run')
+			args '--mixin.config=fbx-player-models.forge.client.mixins.json'
+		}
+		register('client')
+	}
+}
+
+repositories {
+	minecraft.mavenizer(it)
+	maven fg.forgeMaven
+	maven fg.minecraftLibsMaven
+	mavenCentral()
+}
+
+configurations {
+	bundledLwjgl
+}
+
+jarJar.register()
+
+dependencies {
+	implementation minecraft.dependency("net.minecraftforge:forge:${project.forge_1211_minecraft_version}-${project.forge_1211_loader_version}")
+	compileOnly 'org.jetbrains:annotations:24.1.0'
+	testImplementation 'junit:junit:4.13.2'
+
+	// JarJar packages directly declared dependencies, so list the complete
+	// jgltf runtime dependency set for both compilation and production packaging.
+	[
+		'de.javagl:jgltf-model:2.0.4',
+		'de.javagl:jgltf-impl-v1:2.0.4',
+		'de.javagl:jgltf-impl-v2:2.0.4',
+		'com.fasterxml.jackson.core:jackson-databind:2.13.4.2',
+		'com.fasterxml.jackson.core:jackson-core:2.13.4',
+		'com.fasterxml.jackson.core:jackson-annotations:2.13.4'
+	].each { library ->
+		implementation library
+		jarJar library
+	}
+
+	// Keep the native resource paths expected by LWJGL. Classifier jars share
+	// Maven coordinates, so package these resources directly instead of JarJar.
+	['nfd', 'assimp'].each { library ->
+		implementation("org.lwjgl:lwjgl-${library}:3.3.3") { transitive = false }
+		bundledLwjgl("org.lwjgl:lwjgl-${library}:3.3.3") { transitive = false }
+		['windows', 'windows-arm64', 'linux', 'linux-arm64', 'macos', 'macos-arm64'].each { platform ->
+			bundledLwjgl("org.lwjgl:lwjgl-${library}:3.3.3:natives-${platform}") { transitive = false }
+		}
+		String osName = System.getProperty('os.name').toLowerCase(Locale.ROOT)
+		String nativeOs = osName.contains('win') ? 'windows' : osName.contains('mac') ? 'macos' : 'linux'
+		String architecture = System.getProperty('os.arch').toLowerCase(Locale.ROOT)
+		String nativeArch = architecture in ['aarch64', 'arm64'] ? '-arm64' : ''
+		runtimeOnly("org.lwjgl:lwjgl-${library}:3.3.3:natives-${nativeOs}${nativeArch}") { transitive = false }
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.release = 21
+	options.encoding = 'UTF-8'
+}
+
+processResources {
+	inputs.property 'version', project.version
+	// Shared code references this namespace for its fallback texture.
+	from(rootProject.file('client-common/src/main/resources/assets/fbx-player-models')) {
+		into 'assets/fbx-player-models-lite'
+	}
+	filesMatching('META-INF/mods.toml') {
+		expand version: inputs.properties.version
+	}
+}
+
+jar {
+	archiveClassifier = 'slim'
+	from({ configurations.bundledLwjgl.collect { zipTree(it) } }) {
+		exclude 'META-INF/**', 'module-info.class'
+	}
+	from(rootProject.file('LICENSE')) {
+		rename { "${it}_${project.base.archivesName.get()}" }
+	}
+	manifest.attributes 'MixinConfigs': 'fbx-player-models.forge.client.mixins.json'
+}
+
+tasks.named('jarJar') {
+	archiveClassifier = null
+	archiveFileName = "${rootProject.archives_base_name}-forge-v${project.version}+mc${project.forge_1211_minecraft_version}.jar"
+}

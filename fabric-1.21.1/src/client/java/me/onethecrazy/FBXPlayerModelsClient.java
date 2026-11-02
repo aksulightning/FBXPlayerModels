@@ -54,7 +54,6 @@ public class FBXPlayerModelsClient implements ClientModInitializer {
 		registerCommands();
 		// Register player join world callback
 		registerPlayerJoinCallback();
-		registerAutoUploadCallback();
 		// Clear world-scoped skin state when leaving a world/server.
 		registerDisconnectCallback();
 		registerEntityRenderers();
@@ -89,9 +88,6 @@ public class FBXPlayerModelsClient implements ClientModInitializer {
 		});
 	}
 
-	public void registerAutoUploadCallback(){
-		PlatformServices.events().registerClientJoined(() -> SkinManager.uploadSelectedSkin(true));
-	}
 
 	public void registerDisconnectCallback(){
 		PlatformServices.events().registerClientDisconnected(SkinManager::clearWorldSkinState);
