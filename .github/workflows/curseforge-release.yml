@@ -4,13 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: Version to build and publish
+        description: Versions to build and publish
         type: choice
-        default: fabric-1.21.1
+        default: all
         options:
+          - all
           - fabric-1.21.1
           - fabric-1.21.1-client
           - fabric-26.2
+          - forge-1.21.1
+          - fabric-b1.7.3
       channel:
         description: CurseForge release channel
         type: choice
@@ -22,11 +25,7 @@ on:
       notes:
         description: Release notes
         type: string
-        required: true
-      manual_release:
-        description: Hold for manual release after CurseForge approval
-        type: boolean
-        default: true
+        default: Single-player and LAN release with optional client-only variants.
 
 permissions:
   contents: read
@@ -36,30 +35,53 @@ concurrency:
   group: fbx-manual-curseforge-release
   cancel-in-progress: false
 
+env:
+  BUILD_SOURCE_BRANCH: ${{ github.ref_name }}
+  BUILD_COMMIT: ${{ github.sha }}
+  BUILD_RUN_ID: ${{ github.run_id }}
+  RELEASE_CHANNEL: ${{ inputs.channel }}
+  RELEASE_NOTES: ${{ inputs.notes }}
+
 jobs:
   validate:
     runs-on: ubuntu-26.04
     steps:
-      - name: Check CurseForge configuration
+      - name: Check CurseForge publishing configuration
         env:
-          CF_PROJECT: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          CF_PROJECT: ${{ vars.CURSEFORGE_ID }}
           CF_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CF_VERSION_NAMES: ${{ vars.CURSEFORGE_VERSION_NAMES }}
         run: |
           python3 - <<'PY'
+          import json
           import os
+          import re
 
-          project = os.environ["CF_PROJECT"]
-          if not project.isascii() or not project.isdigit() or int(project) <= 0:
+          if not re.fullmatch(r"[1-9][0-9]*", os.environ["CF_PROJECT"]):
               raise SystemExit(
-                  "Set repository variable CURSEFORGE_PROJECT_ID "
-                  "to your numeric CurseForge project ID."
+                  "Configure repository variable CURSEFORGE_ID "
+                  "with your numeric project ID."
               )
           if not os.environ["CF_TOKEN"].strip():
               raise SystemExit(
-                  "Set repository secret CURSEFORGE_TOKEN "
-                  "to your CurseForge Author API token."
+                  "Configure repository secret CURSEFORGE_TOKEN."
               )
-          print("CurseForge configuration is present.")
+
+          overrides = json.loads(os.environ["CF_VERSION_NAMES"] or "{}")
+          if not isinstance(overrides, dict):
+              raise SystemExit(
+                  "CURSEFORGE_VERSION_NAMES must be a JSON object."
+              )
+          for target, names in overrides.items():
+              if (
+                  not isinstance(names, list)
+                  or not names
+                  or any(not isinstance(name, str) or not name for name in names)
+              ):
+                  raise SystemExit(
+                      f"Invalid CurseForge version names for {target}."
+                  )
+          print("CurseForge publishing configuration is present.")
           PY
 
   build:
@@ -68,83 +90,160 @@ jobs:
     with:
       target: ${{ inputs.target }}
 
-  publish:
+  preflight:
     needs: build
     runs-on: ubuntu-26.04
+    outputs:
+      matrix: ${{ steps.verify.outputs.matrix }}
     steps:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
 
-      - name: Download production jar and manifest
-        uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v5
         with:
-          name: fbx-player-models-${{ inputs.target }}
-          path: .release/${{ inputs.target }}/
+          pattern: fbx-player-models-*
+          path: .release/
 
-      - name: Verify artifact and prepare upload metadata
+      - name: Verify all artifacts and resolve CurseForge versions
+        id: verify
         env:
           RELEASE_TARGET: ${{ inputs.target }}
-          RELEASE_CHANNEL: ${{ inputs.channel }}
-          RELEASE_NOTES: ${{ inputs.notes }}
-          MANUAL_RELEASE: ${{ inputs.manual_release }}
-          BUILD_SOURCE_BRANCH: ${{ github.ref_name }}
-          BUILD_COMMIT: ${{ github.sha }}
-          BUILD_RUN_ID: ${{ github.run_id }}
+          CF_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CF_VERSION_NAMES: ${{ vars.CURSEFORGE_VERSION_NAMES }}
         run: |
           python3 - <<'PY'
           import json
           import os
           import sys
           from pathlib import Path
+          from urllib.request import Request, urlopen
 
           sys.path.insert(0, str(Path(".github/scripts").resolve()))
+          from release_metadata import output
           from release_publish import verify_downloads
 
-          target = os.environ["RELEASE_TARGET"]
-          allowed = {
-              "fabric-1.21.1",
-              "fabric-1.21.1-client",
-              "fabric-26.2",
+          rows = verify_downloads(os.environ["RELEASE_TARGET"])
+          overrides = json.loads(os.environ["CF_VERSION_NAMES"] or "{}")
+
+          request = Request(
+              "https://minecraft.curseforge.com/api/game/versions",
+              headers={
+                  "X-Api-Token": os.environ["CF_TOKEN"],
+                  "User-Agent": "aksulightning/FBXPlayerModels manual-release",
+              },
+          )
+          with urlopen(request, timeout=60) as response:
+              versions = json.load(response)
+
+          if not isinstance(versions, list):
+              raise SystemExit("Unexpected CurseForge versions response.")
+
+          by_name = {}
+          for version in versions:
+              by_name.setdefault(version["name"], []).append(version["id"])
+
+          loaders = {
+              "fabric": "Fabric",
+              "forge": "Forge",
+              "babric": "Babric",
           }
-          if target not in allowed:
-              raise SystemExit("Unsupported CurseForge target.")
+
+          for row in rows:
+              names = overrides.get(
+                  row["target"],
+                  [row["minecraft"], loaders[row["loader"]]],
+              )
+              ids = []
+              for name in names:
+                  matches = by_name.get(name, [])
+                  if len(matches) != 1:
+                      raise SystemExit(
+                          f"{row['target']}: CurseForge version {name!r} "
+                          "is missing or ambiguous. Configure exact supported "
+                          "names in CURSEFORGE_VERSION_NAMES, or select "
+                          "another target."
+                      )
+                  ids.append(matches[0])
+              row["curseforge_versions"] = json.dumps(ids)
+
+          output("matrix", json.dumps({"include": rows}))
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as stream:
+              stream.write(
+                  f"Verified {len(rows)} artifacts and resolved "
+                  "all CurseForge version IDs before publication.\n"
+              )
+          PY
+
+  publish:
+    name: Publish ${{ matrix.target }}
+    needs: preflight
+    runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.preflight.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: ${{ matrix.artifact }}
+          path: .release/${{ matrix.target }}/
+
+      - name: Verify selected artifact
+        id: artifact
+        env:
+          RELEASE_TARGET: ${{ matrix.target }}
+        run: python3 .github/scripts/release_publish.py verify "$RELEASE_TARGET"
+
+      - name: Prepare CurseForge metadata
+        env:
+          CF_TITLE: ${{ steps.artifact.outputs.title }}
+          CF_CHANGELOG: ${{ steps.artifact.outputs.changelog }}
+          CF_LOADER: ${{ steps.artifact.outputs.loader }}
+          CF_VERSIONS: ${{ matrix.curseforge_versions }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
 
           channel = os.environ["RELEASE_CHANNEL"]
           if channel not in {"alpha", "beta", "release"}:
               raise SystemExit("Invalid release channel.")
 
-          row, = verify_downloads(target)
-          payload = {
-              "displayName": row["title"],
-              "changelog": row["changelog"],
+          metadata = {
+              "displayName": os.environ["CF_TITLE"],
+              "changelog": os.environ["CF_CHANGELOG"],
               "changelogType": "markdown",
-              "gameVersionNames": [row["minecraft"], "Fabric"],
+              "gameVersions": json.loads(os.environ["CF_VERSIONS"]),
               "releaseType": channel,
-              "isMarkedForManualRelease": (
-                  os.environ["MANUAL_RELEASE"] == "true"
-              ),
-              "relations": {
+          }
+          if os.environ["CF_LOADER"] == "fabric":
+              metadata["relations"] = {
                   "projects": [
                       {
                           "slug": "fabric-api",
                           "type": "requiredDependency",
                       }
                   ]
-              },
-          }
+              }
+
           Path(".release/curseforge-metadata.json").write_text(
-              json.dumps(payload), encoding="utf-8"
+              json.dumps(metadata), encoding="utf-8"
           )
-          with open(os.environ["GITHUB_ENV"], "a") as stream:
-              stream.write(f"CF_UPLOAD_FILE={row['file']}\n")
           PY
 
-      - name: Upload through official CurseForge API
+      - name: Create CurseForge release
         env:
-          CF_PROJECT: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          CF_PROJECT: ${{ vars.CURSEFORGE_ID }}
           CF_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CF_FILE: ${{ steps.artifact.outputs.file }}
+          CF_TARGET: ${{ matrix.target }}
         run: |
           curl --fail-with-body --silent --show-error \
             --connect-timeout 30 \
@@ -152,7 +251,7 @@ jobs:
             --request POST \
             --header "X-Api-Token: ${CF_TOKEN}" \
             --form "metadata=<.release/curseforge-metadata.json" \
-            --form "file=@${CF_UPLOAD_FILE};type=application/java-archive" \
+            --form "file=@${CF_FILE};type=application/java-archive" \
             --output .release/curseforge-response.json \
             "https://minecraft.curseforge.com/api/projects/${CF_PROJECT}/upload-file"
 
@@ -166,10 +265,12 @@ jobs:
           )
           file_id = response.get("id")
           if type(file_id) is not int or file_id <= 0:
-              raise SystemExit(
-                  "CurseForge did not return a valid uploaded file ID."
-              )
-          message = f"CurseForge upload succeeded. File ID: {file_id}"
+              raise SystemExit("CurseForge returned no valid file ID.")
+
+          message = (
+              f"Uploaded {os.environ['CF_TARGET']} to CurseForge. "
+              f"File ID: {file_id}"
+          )
           print(message)
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as stream:
               stream.write(message + "\n")
