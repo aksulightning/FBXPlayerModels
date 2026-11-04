@@ -6,7 +6,7 @@ on:
       target:
         description: Versions to build and publish
         type: choice
-        default: all
+        default: fabric-1.21.1
         options:
           - all
           - fabric-1.21.1
@@ -60,11 +60,13 @@ jobs:
           if not re.fullmatch(r"[1-9][0-9]*", os.environ["CF_PROJECT"]):
               raise SystemExit(
                   "Configure repository variable CURSEFORGE_ID "
-                  "with your numeric project ID."
+                  "with your numeric CurseForge project ID."
               )
+
           if not os.environ["CF_TOKEN"].strip():
               raise SystemExit(
-                  "Configure repository secret CURSEFORGE_TOKEN."
+                  "Configure repository secret CURSEFORGE_TOKEN "
+                  "with your CurseForge Author API token."
               )
 
           overrides = json.loads(os.environ["CF_VERSION_NAMES"] or "{}")
@@ -72,15 +74,20 @@ jobs:
               raise SystemExit(
                   "CURSEFORGE_VERSION_NAMES must be a JSON object."
               )
+
           for target, names in overrides.items():
               if (
                   not isinstance(names, list)
                   or not names
-                  or any(not isinstance(name, str) or not name for name in names)
+                  or any(
+                      not isinstance(name, str) or not name.strip()
+                      for name in names
+                  )
               ):
                   raise SystemExit(
                       f"Invalid CurseForge version names for {target}."
                   )
+
           print("CurseForge publishing configuration is present.")
           PY
 
@@ -101,16 +108,16 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
-      - uses: actions/download-artifact@v5
+      - name: Download built production jars
+        uses: actions/download-artifact@v5
         with:
           pattern: fbx-player-models-*
           path: .release/
 
-      - name: Verify all artifacts and resolve CurseForge versions
+      - name: Verify all selected artifacts
         id: verify
         env:
           RELEASE_TARGET: ${{ inputs.target }}
-          CF_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
           CF_VERSION_NAMES: ${{ vars.CURSEFORGE_VERSION_NAMES }}
         run: |
           python3 - <<'PY'
@@ -118,7 +125,6 @@ jobs:
           import os
           import sys
           from pathlib import Path
-          from urllib.request import Request, urlopen
 
           sys.path.insert(0, str(Path(".github/scripts").resolve()))
           from release_metadata import output
@@ -127,27 +133,10 @@ jobs:
           rows = verify_downloads(os.environ["RELEASE_TARGET"])
           overrides = json.loads(os.environ["CF_VERSION_NAMES"] or "{}")
 
-          request = Request(
-              "https://minecraft.curseforge.com/api/game/versions",
-              headers={
-                  "X-Api-Token": os.environ["CF_TOKEN"],
-                  "User-Agent": "aksulightning/FBXPlayerModels manual-release",
-              },
-          )
-          with urlopen(request, timeout=60) as response:
-              versions = json.load(response)
-
-          if not isinstance(versions, list):
-              raise SystemExit("Unexpected CurseForge versions response.")
-
-          by_name = {}
-          for version in versions:
-              by_name.setdefault(version["name"], []).append(version["id"])
-
           loaders = {
               "fabric": "Fabric",
               "forge": "Forge",
-              "babric": "Babric",
+              "babric": "Fabric",
           }
 
           for row in rows:
@@ -155,24 +144,26 @@ jobs:
                   row["target"],
                   [row["minecraft"], loaders[row["loader"]]],
               )
-              ids = []
-              for name in names:
-                  matches = by_name.get(name, [])
-                  if len(matches) != 1:
-                      raise SystemExit(
-                          f"{row['target']}: CurseForge version {name!r} "
-                          "is missing or ambiguous. Configure exact supported "
-                          "names in CURSEFORGE_VERSION_NAMES, or select "
-                          "another target."
-                      )
-                  ids.append(matches[0])
-              row["curseforge_versions"] = json.dumps(ids)
+              if (
+                  not isinstance(names, list)
+                  or not names
+                  or any(
+                      not isinstance(name, str) or not name.strip()
+                      for name in names
+                  )
+              ):
+                  raise SystemExit(
+                      f"Invalid CurseForge version names for {row['target']}."
+                  )
+
+              row["curseforge_version_names"] = json.dumps(names)
 
           output("matrix", json.dumps({"include": rows}))
+
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as stream:
               stream.write(
-                  f"Verified {len(rows)} artifacts and resolved "
-                  "all CurseForge version IDs before publication.\n"
+                  f"Verified {len(rows)} release artifacts "
+                  "before publication.\n"
               )
           PY
 
@@ -189,7 +180,8 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
-      - uses: actions/download-artifact@v5
+      - name: Download selected production jar
+        uses: actions/download-artifact@v5
         with:
           name: ${{ matrix.artifact }}
           path: .release/${{ matrix.target }}/
@@ -205,7 +197,7 @@ jobs:
           CF_TITLE: ${{ steps.artifact.outputs.title }}
           CF_CHANGELOG: ${{ steps.artifact.outputs.changelog }}
           CF_LOADER: ${{ steps.artifact.outputs.loader }}
-          CF_VERSIONS: ${{ matrix.curseforge_versions }}
+          CF_VERSIONS: ${{ matrix.curseforge_version_names }}
         run: |
           python3 - <<'PY'
           import json
@@ -220,9 +212,10 @@ jobs:
               "displayName": os.environ["CF_TITLE"],
               "changelog": os.environ["CF_CHANGELOG"],
               "changelogType": "markdown",
-              "gameVersions": json.loads(os.environ["CF_VERSIONS"]),
+              "gameVersionNames": json.loads(os.environ["CF_VERSIONS"]),
               "releaseType": channel,
           }
+
           if os.environ["CF_LOADER"] == "fabric":
               metadata["relations"] = {
                   "projects": [
@@ -234,7 +227,8 @@ jobs:
               }
 
           Path(".release/curseforge-metadata.json").write_text(
-              json.dumps(metadata), encoding="utf-8"
+              json.dumps(metadata),
+              encoding="utf-8",
           )
           PY
 
@@ -261,17 +255,23 @@ jobs:
           from pathlib import Path
 
           response = json.loads(
-              Path(".release/curseforge-response.json").read_text()
+              Path(".release/curseforge-response.json").read_text(
+                  encoding="utf-8"
+              )
           )
           file_id = response.get("id")
+
           if type(file_id) is not int or file_id <= 0:
-              raise SystemExit("CurseForge returned no valid file ID.")
+              raise SystemExit(
+                  "CurseForge did not return a valid uploaded file ID."
+              )
 
           message = (
               f"Uploaded {os.environ['CF_TARGET']} to CurseForge. "
               f"File ID: {file_id}"
           )
           print(message)
+
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as stream:
               stream.write(message + "\n")
           PY
