@@ -526,3 +526,7 @@ The 26.2 development launch uses DevAuth `1.2.2`; unlike 1.2.1, it does not depe
 8. Audit the new rendering path for backend-specific graphics calls.
 9. Keep shared logic in `common`; isolate mapping-sensitive differences inside the Fabric target module.
 10. Run the focused compile tasks for every supported target, build the new module, and inspect the production jar.
+
+## CI runner update (2026-11-04)
+
+`.github/workflows/github-release.yml`, `.github/workflows/modrinth-release.yml`, `.github/workflows/nightly.yml` now use `ubuntu-latest` for jobs previously pinned to `ubuntu-24.04`, following the requested GitHub default Ubuntu image. Existing explicitly selected Ubuntu 26.04 jobs are retained. This changes workflow configuration only; Fabric compilation and release workflows have not been executed for this update.

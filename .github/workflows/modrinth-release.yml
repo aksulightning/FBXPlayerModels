@@ -44,7 +44,7 @@ env:
 
 jobs:
   validate:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
@@ -64,7 +64,7 @@ jobs:
 
   preflight:
     needs: build
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.verify.outputs.matrix }}
       has_pending: ${{ steps.verify.outputs.has_pending }}
@@ -89,7 +89,7 @@ jobs:
     name: Publish ${{ matrix.target }}
     needs: preflight
     if: needs.preflight.outputs.has_pending == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.preflight.outputs.matrix) }}
