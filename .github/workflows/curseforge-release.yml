@@ -109,10 +109,18 @@ jobs:
           persist-credentials: false
 
       - name: Download built production jars
+        if: inputs.target == 'all'
         uses: actions/download-artifact@v5
         with:
           pattern: fbx-player-models-*
           path: .release/
+
+      - name: Download selected production jar
+        if: inputs.target != 'all'
+        uses: actions/download-artifact@v5
+        with:
+          name: fbx-player-models-${{ inputs.target }}
+          path: .release/${{ inputs.target }}/
 
       - name: Verify all selected artifacts
         id: verify
