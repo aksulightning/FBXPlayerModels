@@ -94,3 +94,234 @@ jobs:
   build:
     needs: validate
     uses: ./.github/workflows/nightly.yml
+    with:
+      target: ${{ inputs.target }}
+
+  preflight:
+    needs: build
+    runs-on: ubuntu-26.04
+    outputs:
+      matrix: ${{ steps.verify.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Download built production jars
+        uses: actions/download-artifact@v5
+        with:
+          pattern: fbx-player-models-*
+          path: .release/
+
+      - name: Verify all selected artifacts
+        id: verify
+        env:
+          RELEASE_TARGET: ${{ inputs.target }}
+          CF_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CF_VERSION_NAMES: ${{ vars.CURSEFORGE_VERSION_NAMES }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+          from urllib.request import Request, urlopen
+
+          sys.path.insert(0, str(Path(".github/scripts").resolve()))
+          from release_metadata import output
+          from release_publish import verify_downloads
+
+          rows = verify_downloads(os.environ["RELEASE_TARGET"])
+          overrides = json.loads(os.environ["CF_VERSION_NAMES"] or "{}")
+
+          def get_catalog(endpoint):
+              request = Request(
+                  f"https://minecraft.curseforge.com/api/game/{endpoint}",
+                  headers={"X-Api-Token": os.environ["CF_TOKEN"]},
+              )
+              with urlopen(request, timeout=60) as response:
+                  catalog = json.load(response)
+              if not isinstance(catalog, list):
+                  raise SystemExit(f"Unexpected CurseForge {endpoint} response.")
+              return catalog
+
+          versions = get_catalog("versions")
+          version_types = {
+              row["id"]: row["slug"].casefold()
+              for row in get_catalog("version-types")
+          }
+
+          def resolve_version(target, name, group="", preferred_type=None):
+              key = name.strip().casefold()
+              slug = key.replace(".", "-").replace(" ", "-")
+              matches = []
+              for version in versions:
+                  version_id = version["id"]
+                  version_type = version_types.get(version["gameVersionTypeID"], "")
+                  if type(version_id) is not int or version_id <= 0:
+                      continue
+                  if version_type.startswith(group) and (
+                      version["name"].strip().casefold() == key
+                      or version["slug"].casefold() == slug
+                  ):
+                      matches.append((version_id, version_type))
+
+              # Prefer the Java version family when other categories share a name.
+              preferred = [item for item in matches if item[1] == preferred_type]
+              ids = {version_id for version_id, _ in preferred or matches}
+              if len(ids) != 1:
+                  problem = "not found" if not ids else f"ambiguous (IDs: {sorted(ids)})"
+                  raise SystemExit(f"{target}: CurseForge version {name!r} {problem}.")
+              return ids.pop()
+
+          loaders = {"fabric": "Fabric", "forge": "Forge", "babric": "Fabric"}
+
+          for row in rows:
+              target = row["target"]
+              minecraft = row["minecraft"]
+              if minecraft == "b1.7.3":
+                  game_name, game_type = "Beta 1.7.3", "minecraft-beta"
+              else:
+                  game_name = minecraft
+                  family = "-".join(minecraft.split(".")[:2])
+                  game_type = f"minecraft-{family}"
+
+              loader = loaders[row["loader"]]
+              ids = []
+              for name in overrides.get(target, [game_name, loader]):
+                  key = name.strip().casefold()
+                  if key in {minecraft.casefold(), game_name.casefold()}:
+                      version_id = resolve_version(target, game_name, "minecraft", game_type)
+                  elif key == loader.casefold():
+                      version_id = resolve_version(target, name, "modloader")
+                  else:
+                      version_id = resolve_version(target, name)
+                  ids.append(version_id)
+              row["curseforge_version_ids"] = json.dumps(list(dict.fromkeys(ids)))
+
+          output("matrix", json.dumps({"include": rows}))
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as stream:
+              stream.write(
+                  f"Verified {len(rows)} artifacts and resolved their CurseForge version IDs "
+                  "before publication.\n"
+              )
+          PY
+
+  publish:
+    name: Publish ${{ matrix.target }}
+    needs: preflight
+    runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.preflight.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Download selected production jar
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ matrix.artifact }}
+          path: .release/${{ matrix.target }}/
+
+      - name: Verify selected artifact
+        id: artifact
+        env:
+          RELEASE_TARGET: ${{ matrix.target }}
+        run: python3 .github/scripts/release_publish.py verify "$RELEASE_TARGET"
+
+      - name: Prepare CurseForge metadata
+        env:
+          CF_TITLE: ${{ steps.artifact.outputs.title }}
+          CF_CHANGELOG: ${{ steps.artifact.outputs.changelog }}
+          CF_LOADER: ${{ steps.artifact.outputs.loader }}
+          CF_VERSIONS: ${{ matrix.curseforge_version_ids }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          channel = os.environ["RELEASE_CHANNEL"]
+          if channel not in {"alpha", "beta", "release"}:
+              raise SystemExit("Invalid release channel.")
+
+          metadata = {
+              "displayName": os.environ["CF_TITLE"],
+              "changelog": os.environ["CF_CHANGELOG"],
+              "changelogType": "markdown",
+              "gameVersions": json.loads(os.environ["CF_VERSIONS"]),
+              "releaseType": channel,
+          }
+
+          if os.environ["CF_LOADER"] == "fabric":
+              metadata["relations"] = {
+                  "projects": [
+                      {
+                          "slug": "fabric-api",
+                          "type": "requiredDependency",
+                      }
+                  ]
+              }
+
+          Path(".release/curseforge-metadata.json").write_text(
+              json.dumps(metadata),
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Create CurseForge release
+        env:
+          CF_PROJECT: ${{ vars.CURSEFORGE_ID }}
+          CF_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CF_FILE: ${{ steps.artifact.outputs.file }}
+          CF_TARGET: ${{ matrix.target }}
+        run: |
+          status=$(curl --silent --show-error \
+            --connect-timeout 30 \
+            --max-time 600 \
+            --request POST \
+            --header "X-Api-Token: ${CF_TOKEN}" \
+            --form-string "metadata=$(<.release/curseforge-metadata.json)" \
+            --form "file=@${CF_FILE};type=application/java-archive" \
+            --output .release/curseforge-response.json \
+            --write-out "%{http_code}" \
+            "https://minecraft.curseforge.com/api/projects/${CF_PROJECT}/upload-file")
+
+          CF_HTTP_STATUS="$status" python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          status = os.environ["CF_HTTP_STATUS"]
+          try:
+              response = json.loads(Path(".release/curseforge-response.json").read_bytes())
+          except (UnicodeDecodeError, json.JSONDecodeError):
+              raise SystemExit(f"CurseForge returned a non-JSON response (HTTP {status}).")
+
+          if not status.startswith("2"):
+              detail = json.dumps(response, ensure_ascii=True).replace(
+                  os.environ["CF_TOKEN"], "***"
+              )
+              raise SystemExit(f"CurseForge upload failed (HTTP {status}): {detail[:1500]}")
+
+          file_id = response.get("id") if isinstance(response, dict) else None
+
+          if type(file_id) is not int or file_id <= 0:
+              raise SystemExit(
+                  "CurseForge did not return a valid uploaded file ID."
+              )
+
+          message = (
+              f"Uploaded {os.environ['CF_TARGET']} to CurseForge. "
+              f"File ID: {file_id}"
+          )
+          print(message)
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as stream:
+              stream.write(message + "\n")
+          PY
