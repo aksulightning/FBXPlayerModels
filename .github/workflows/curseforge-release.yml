@@ -206,6 +206,8 @@ jobs:
                   else:
                       version_id = resolve_version(target, name)
                   ids.append(version_id)
+              # Open to LAN runs inside the client; dedicated servers are unsupported.
+              ids.append(resolve_version(target, "Client"))
               row["curseforge_version_ids"] = json.dumps(list(dict.fromkeys(ids)))
 
           output("matrix", json.dumps({"include": rows}))
