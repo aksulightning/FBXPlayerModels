@@ -95,9 +95,9 @@ Beta ran 8 tests and Forge 1.21.1 ran 22, all with zero failures, errors, or ski
 
 The target uses RetroFuturaGradle `2.0.3`, MCP stable `39`, a Java 8 compiler/runtime, and Minecraft's LWJGL 2. RetroFuturaGradle's 1.12.2 SDK is pinned upstream to Forge `14.23.5.2847`; the mod accepts that version and newer 1.12.2 Forge installations. `forge_1122_loader_version` records that SDK version. Launch the root Gradle 9.6 wrapper with Java 25 or newer to load the RFG plugin; RFG additionally uses installed Java 8 and Java 17 toolchains for Minecraft preparation. Plugin resolution uses the upstream GTNH Maven repository. References: [Forge development environment](https://github.com/CleanroomMC/ForgeDevEnv) and [RFG toolchain source](https://github.com/GTNewHorizons/RetroFuturaGradle/blob/master/plugin/src/main/java/com/gtnewhorizons/retrofuturagradle/IMinecraftyExtension.java).
 
-The `@Mod` entrypoint and `mcmod.info` both declare client-only behavior. The mod ID is `fbxplayermodels`, accepted Minecraft range is `[1.12.2]`, and the remote-version predicate accepts an unmodified peer. There are no network channels, model transfers, server initializers, entities, or server commands. The `/skin` command uses Forge's client command handler. World rendering is limited to the local player in single-player and resolved local-network sessions, following the existing address policy; public-server connections show the existing inactive notice once per connection. Preview and settings work without a world.
+The `@Mod` entrypoint and `mcmod.info` both declare client-only behavior. The mod ID is `fbxplayermodels`, accepted Minecraft range is `[1.12.2]`, and the remote-version predicate accepts an unmodified peer. There are no network channels, model transfers, server initializers, entities, or client/server commands. World rendering is limited to the local player in single-player and resolved local-network sessions, following the existing address policy; public-server connections show the existing inactive notice once per connection. Preview and settings work without a world.
 
-Open the settings using **K** (rebindable in Controls), the title-screen **FBX Models** button, the Forge Mods **Config** button, or `/skin`. The settings contain model selection/reset, a path input, a desktop file picker, an enable toggle, model scale, an animation toggle, six editable logical bone bindings, four procedural state mappings, auto binding, a rotatable model preview, first-person body rendering, and camera XYZ offsets/reset. Commands also support `/skin import <path>`, `/skin reset`, `/skin toggle`, and `/skin reload`. Paths containing spaces may be quoted. The path input and import command remain usable when a desktop picker is unavailable.
+Open the settings using **O** (rebindable in Controls), the title-screen **FBX Models** button, or the Forge Mods **Config** button. The settings contain model selection/reset, a path input, a desktop file picker, an enable toggle, model scale, an animation toggle, six editable logical bone bindings, four procedural state mappings, auto binding, a rotatable model preview, first-person body rendering, and camera XYZ offsets/reset. The path input remains usable when a desktop picker is unavailable. The previous `/skin` command and its subcommands have been replaced by the model-menu keybind.
 
 `ClientModels` owns one local model and saves selection/settings under `.minecraft/.fbxplayermodels/forge-1.12.2/config.json`; cached files are SHA-256 addressed under its `skins/` directory. The cache also preserves referenced external textures in `<hash>.assets/`, with normalized paths constrained to that directory. Embedded and external images use Minecraft `DynamicTexture` objects. Selection failures report a visible error; reset and resource reload release owned GL textures. Settings use a temporary file and atomic replacement where supported. This version-specific settings directory avoids overwriting the modern variants' config formats.
 
@@ -123,6 +123,40 @@ Minecraft 1.12.2's `RenderHelper.enableStandardItemLighting()` selects `GL_FLAT`
 `forge-1.12.2-client` now explicitly selects `GL_SMOOTH` inside `LegacyModelRenderer`'s existing saved OpenGL attribute scope. Lighting interpolates between the imported/skinned vertex normals for third-person rendering, first-person body rendering, and the settings preview. The existing `glPopAttrib()` restores the caller's shade mode. The scoped raw GL call leaves `GlStateManager`'s cached shade mode unchanged, so it still matches the restored driver state afterward. Authored normals and hard edges remain part of the imported geometry.
 
 Validation: the prescribed eight Fabric compilation tasks passed under JDK 26. The previously authorized Forge validation also passed with `JAVA_HOME=/usr/lib/jvm/temurin-26-jdk-amd64 bash ./gradlew :forge-1.12.2-client:compileJava -Dorg.gradle.java.installations.paths=/usr/lib/jvm/zulu-8-amd64,/usr/lib/jvm/temurin-17-jdk-amd64`, compiling the changed renderer with Java 8. The cause and state restoration were checked against the locally generated Minecraft `RenderHelper` and `GlStateManager` sources. This module has no unit-test sources; no additional tests, packaging tasks, workflows, or game launch were run for this fix. In-game visual verification remains outstanding.
+
+## Client-only Fabric model-menu keybind (2026-11-06)
+
+`fabric-1.21.1-client` and `fabric-26.3-client` now open the model configuration menu with **O** instead of registering the `/skin` client command. Rebind **Open model menu** under **FBX Player Models** in Minecraft's Controls settings. Each client initializer registers the binding with its version's Fabric key API and consumes presses at the end of the client tick. The menu opens only while a player exists and no screen is open, so typing in chat or using another screen does not open it. The obsolete client-only command classes were removed. The full Fabric variants retain their existing commands.
+
+The 1.21.1 binding uses Yarn `KeyBinding` and the GLFW O key; 26.3 uses `KeyMapping`, a registered category, and SDL-aware `InputConstants.KEY_O`. Their action and category labels come from the shared English language resource.
+
+Validation: the prescribed eight Fabric compilation tasks passed with `JAVA_HOME=/usr/lib/jvm/temurin-26-jdk-amd64` and access to the existing Gradle cache. Both client-only `compileClientJava` tasks compiled the changes; their main `compileJava` tasks reported `NO-SOURCE`, and the full Fabric compilations were up to date. The initial sandbox attempt could not write the wrapper cache lock, and the first retry used the shell's default Java 8; selecting JDK 26 resolved the environment issue. No additional checks, packaging tasks, or game launch were run. In-game key handling and Controls rebinding remain unverified.
+
+## Model-menu keybind across all client-only variants (2026-11-06)
+
+All five client-only variants now open the model menu through a rebindable **O** key and no longer handle `/skin` locally:
+
+| Module | Binding implementation |
+| --- | --- |
+| `fabric-1.21.1-client` | Fabric `KeyBindingHelper` and end-of-client-tick handling |
+| `fabric-26.3-client` | Fabric `KeyMappingHelper`, a registered category, and SDL-aware O input |
+| `forge-1.21.1-client` | Forge mod-bus `RegisterKeyMappingsEvent` and post-client-tick handling |
+| `forge-1.12.2-client` | Existing Forge `ClientRegistry` binding, default changed from K to O |
+| `fabric-b1.7.3-client` | Existing StationAPI binding and in-game key event handling |
+
+Each variant labels the action **Open model menu** in Controls and opens it only when a player exists with no screen already open. The Forge 1.21.1 command class, Forge 1.12.2 command class/registration (including its subcommands), and Beta `/skin` chat-interception mixin/registration were removed. Forge 1.12.2's file-picker error now points to its menu's path field. Its existing binding ID is retained so saved user key choices remain intact; the default is O for fresh settings or after resetting the binding. Beta's existing O implementation remains in place. Full Fabric commands are unchanged.
+
+Validation: the exact prescribed eight-task Fabric compile command passed under JDK 26, with compilation outputs up to date and client-only main source sets reporting `NO-SOURCE`. Source review confirmed O defaults in all five client-only variants and no remaining `/skin` handlers or references to the removed classes in their source/resources. Forge's key-registration event API was checked against the locally cached Forge sources. As required by `AGENTS.md`, no additional build tasks or test suites were run; Forge/Beta compilation and in-game key handling/rebinding remain unverified for this follow-up.
+
+The user subsequently requested basic tests. The prescribed eight Fabric compilation tasks, extended with `:fabric-1.21.1-client:test :fabric-26.3-client:test`, passed under JDK 26. Both Fabric client test tasks reported `NO-SOURCE` and ran their shared `common:test` dependency: 16 tests passed. The following loader-specific commands also passed:
+
+```bash
+JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64 bash ./gradlew :forge-1.21.1-client:compileJava :forge-1.21.1-client:test
+JAVA_HOME=/usr/lib/jvm/temurin-26-jdk-amd64 bash ./gradlew :forge-1.12.2-client:compileJava :forge-1.12.2-client:test -Dorg.gradle.java.installations.paths=/usr/lib/jvm/zulu-8-amd64,/usr/lib/jvm/temurin-17-jdk-amd64
+JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64 bash ./gradlew :fabric-b1.7.3-client:compileJava :fabric-b1.7.3-client:test -Dorg.gradle.java.installations.paths=/usr/lib/jvm/temurin-17-jdk-amd64
+```
+
+Forge 1.21.1 compiled the new keybind and passed 22 tests. Forge 1.12.2 compiled with Java 8; its test task reported `NO-SOURCE`. Beta compiled successfully (up to date) and passed 8 tests, while its dependent `client-common:test` retained 8 passing cases up to date. The XML reports record 54 passing test cases across these suites: 46 executed in this validation and 8 reused, with zero failures, errors, or skips. Existing Gradle deprecation notices and Forge 1.21.1's deprecated `RenderLevelStageEvent.getPoseStack()` warning remain. No source fix was needed. No packaging tasks or game launch were run; in-game O handling and Controls rebinding still need manual verification.
 
 ## Fabric 1.21.1 client-only features and comparison
 
@@ -157,7 +191,7 @@ Validation for this feature addition includes the four prescribed full Fabric co
 
 ## Fabric 26.3 client-only variant (2026-11-06)
 
-`fabric-26.3-client` ports the local-player behavior of `fabric-1.21.1-client` onto the existing full 26.3 renderer and game APIs. Its metadata declares environment `client`, client/Mod Menu/optional voice-chat entrypoints, and only client mixins. `FBXPlayerModelsMod` is a client-side constants/logger holder, not a main/server initializer. The module registers `/skin` locally and no upload-permission command, model-sharing payload, server store, or FBX entity. Its main Java source set is empty.
+`fabric-26.3-client` ports the local-player behavior of `fabric-1.21.1-client` onto the existing full 26.3 renderer and game APIs. Its metadata declares environment `client`, client/Mod Menu/optional voice-chat entrypoints, and only client mixins. `FBXPlayerModelsMod` is a client-side constants/logger holder, not a main/server initializer. The module opens its model menu through the rebindable **O** key and registers no client commands, model-sharing payloads, server store, or FBX entity. Its main Java source set is empty.
 
 The module compiles a selected `localModelFeatures` set directly from `fabric-26.3/src/client/java`: importers, model/animation math, normalization, shape-aware geometry/cache classes, deferred `CustomSkinRenderData`, Shape Key Settings, Voice Shape Settings, and the searchable Voice Target picker. This shares the 26.3 UpAxis-aware importer, binary shape recovery, deformation, live limb/swing poses, and editor behavior. The Gradle project does not depend on the full Fabric module or include its main source set.
 

@@ -2,7 +2,6 @@ package com.aksulightning.fbxplayermodels.forge1122;
 
 import com.aksulightning.fbxplayermodels.forge1122.client.ClientConfig;
 import com.aksulightning.fbxplayermodels.forge1122.client.ClientEvents;
-import com.aksulightning.fbxplayermodels.forge1122.client.ModelCommand;
 import com.aksulightning.fbxplayermodels.forge1122.client.ModelScreen;
 import com.aksulightning.fbxplayermodels.forge1122.util.ModelNormalizer;
 import com.aksulightning.fbxplayermodels.forge1122.util.model.animation.LogicalRigAnimator;
@@ -14,7 +13,6 @@ import com.aksulightning.fbxplayermodels.forge1122.util.parsing.FBXParser;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.IReloadableResourceManager;
 import net.minecraft.client.settings.KeyBinding;
-import net.minecraftforge.client.ClientCommandHandler;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import org.lwjgl.input.Keyboard;
@@ -38,7 +36,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 public final class ClientModels {
-    public static final KeyBinding SETTINGS = new KeyBinding("key.fbxplayermodels.settings", Keyboard.KEY_K,
+    public static final KeyBinding SETTINGS = new KeyBinding("key.fbxplayermodels.settings", Keyboard.KEY_O,
             "key.categories.fbxplayermodels");
     private static final AtomicBoolean PICKER_OPEN = new AtomicBoolean();
     public static ClientConfig config;
@@ -53,7 +51,6 @@ public final class ClientModels {
         config = ClientConfig.load();
         ClientRegistry.registerKeyBinding(SETTINGS);
         MinecraftForge.EVENT_BUS.register(new ClientEvents());
-        ClientCommandHandler.instance.registerCommand(new ModelCommand());
         ((IReloadableResourceManager) Minecraft.getMinecraft().getResourceManager())
                 .registerReloadListener(resources -> reload());
     }
@@ -205,7 +202,7 @@ public final class ClientModels {
                     selected = chooser.getSelectedFile().toPath();
                 }
             } catch (Exception exception) {
-                error = "File picker unavailable. Enter a path or use /skin import <path>.";
+                error = "File picker unavailable. Enter a path in the model menu.";
                 FBXPlayerModelsMod.LOGGER.warn("Could not open file picker", exception);
             } finally {
                 Path result = selected;

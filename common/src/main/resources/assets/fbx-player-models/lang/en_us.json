@@ -1,4 +1,6 @@
 {
+  "key.fbxplayermodels.open_menu": "Open model menu",
+  "key.category.fbx-player-models.main": "FBX Player Models",
   "gui.fbxplayermodels.select_skin": "Choose a skin...",
   "gui.fbxplayermodels.title.file_too_large": "File too large!",
   "gui.fbxplayermodels.description.file_too_large": "The file size must be under 2 MB",

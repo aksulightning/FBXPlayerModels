@@ -63,8 +63,12 @@ public final class ClientEvents {
     @SubscribeEvent
     public void tick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
-        while (ClientModels.SETTINGS.isPressed()) ClientModels.openSettings();
         Minecraft mc = Minecraft.getMinecraft();
+        while (ClientModels.SETTINGS.isPressed()) {
+            if (mc.player != null && mc.currentScreen == null) {
+                ClientModels.openSettings();
+            }
+        }
         NetworkManager current = mc.getConnection() == null ? null : mc.getConnection().getNetworkManager();
         if (observed != current) { observed = current; noticeShown = false; }
         if (current != null && mc.player != null && mc.world != null && !allowed() && !noticeShown) {
