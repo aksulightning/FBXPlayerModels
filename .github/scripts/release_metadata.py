@@ -17,6 +17,7 @@ TARGETS = {
     'fabric-26.3': ('26.3', 'fabric', '25', 'jar', 'fabric_263_mod_version', 'nightly-26.3'),
     'fabric-26.3-client': ('26.3', 'fabric', '25', 'jar', 'fabric_263_client_mod_version', 'nightly-fabric-client-26.3'),
     'forge-1.21.1-client': ('1.21.1', 'forge', '21', 'jarJar', 'forge_1211_mod_version', 'nightly-forge-1.21.1'),
+    'forge-1.12.2-client': ('1.12.2', 'forge', '25', 'reobfJar', 'forge_1122_mod_version', 'nightly-forge-1.12.2'),
     'fabric-b1.7.3-client': ('b1.7.3', 'babric', '21', 'remapJar', 'fabric_b173_mod_version', 'nightly-b1.7.3'),
 }
 
@@ -30,7 +31,14 @@ def metadata(target):
             properties[key.strip()] = value.strip()
     base = properties['archives_base_name']
     version = properties[version_key]
-    variant = '-client' if target in CLIENT_FABRIC_TARGETS else '-forge' if loader == 'forge' else ''
+    if target in CLIENT_FABRIC_TARGETS:
+        variant = '-client'
+    elif target == 'forge-1.12.2-client':
+        variant = '-client-forge'
+    elif loader == 'forge':
+        variant = '-forge'
+    else:
+        variant = ''
     filename = f"{base}{variant}-v{version}+mc{minecraft}.jar"
     return {
         'target': target, 'minecraft': minecraft, 'loader': loader, 'java': java,

@@ -47,7 +47,7 @@ class DuplicatePublicationTest(unittest.TestCase):
 
 class ReleaseSelectionTest(unittest.TestCase):
     def test_all_selects_each_supported_port(self):
-        self.assertEqual({'fabric-1.21.1', 'fabric-1.21.1-client', 'fabric-26.3', 'fabric-26.3-client', 'forge-1.21.1-client', 'fabric-b1.7.3-client'},
+        self.assertEqual({'fabric-1.21.1', 'fabric-1.21.1-client', 'fabric-26.3', 'fabric-26.3-client', 'forge-1.21.1-client', 'forge-1.12.2-client', 'fabric-b1.7.3-client'},
                          set(selected_targets('all')))
 
     def test_single_target_stays_single(self):

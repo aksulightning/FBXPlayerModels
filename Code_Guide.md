@@ -64,6 +64,25 @@ Beta uses BINY `b1.7.3+e1fe071`, Fabric Loader `0.19.3`, StationAPI `2.0.0-alpha
 
 `settings.gradle` recognizes both `fabric-*` and `forge-*` explicit task paths and configures only requested loader targets. Prefer explicit target tasks so unrelated loader plugins and toolchains do not need to resolve together.
 
+## Build workflow coverage and Action runtimes (2026-11-06)
+
+The manual build (`.github/workflows/nightly.yml`), GitHub release, and CurseForge release selectors cover all seven loader modules: full Fabric 1.21.1/26.3, client-only Fabric 1.21.1/26.3, client-only Forge 1.21.1/1.12.2, and client-only Babric Beta 1.7.3. Selecting `all` builds all seven through the shared definitions in `.github/scripts/release_metadata.py`. The release-selection test expectation now includes Forge 1.12.2.
+
+Forge 1.12.2 was the missing build/release target. Its metadata selects `:forge-1.12.2-client:reobfJar` and the production filename `fbx-player-models-client-forge-v2.0.0+1.12.2+mc1.12.2.jar`, retaining its existing filename order and excluding the development jar. The artifact is named `fbx-player-models-forge-1.12.2-client` and uses the shared checksum/provenance manifest and release verification. The build job installs Temurin Java 8 and Microsoft Java 17 toolchains, passes both paths explicitly to Gradle, and then selects Microsoft Java 25 as the Gradle runtime required by RetroFuturaGradle. Beta retains its explicit Java 17 toolchain. Source/bytecode targets remain defined by each module.
+
+The workflows use the latest stable Action major versions checked against their upstream releases on 2026-11-06. Each referenced Action declares the Node.js 24 runtime:
+
+| Workflow reference | Verified upstream release | Runtime declaration |
+| --- | --- | --- |
+| `actions/checkout@v7` | [v7.0.1](https://github.com/actions/checkout/releases/tag/v7.0.1) | [Node.js 24](https://raw.githubusercontent.com/actions/checkout/v7/action.yml) |
+| `actions/setup-java@v6` | [v6.2.0](https://github.com/actions/setup-java/releases/tag/v6.2.0) | [Node.js 24](https://raw.githubusercontent.com/actions/setup-java/v6/action.yml) |
+| `actions/upload-artifact@v7` | [v7.0.2](https://github.com/actions/upload-artifact/releases/tag/v7.0.2) | [Node.js 24](https://raw.githubusercontent.com/actions/upload-artifact/v7/action.yml) |
+| `actions/download-artifact@v8` | [v8.0.2](https://github.com/actions/download-artifact/releases/tag/v8.0.2) | [Node.js 24](https://raw.githubusercontent.com/actions/download-artifact/v8/action.yml) |
+
+The archived `.github/oldworkflows/modrinth-release.yml` has the same seven target choices, including its previously missing Fabric 26.3 variants, and the same updated checkout/download references. It remains archived. Its existing `cloudnode-pro/modrinth-publish@v2` uses a [Docker action](https://raw.githubusercontent.com/cloudnode-pro/modrinth-publish/v2/action.yaml) built [on Node.js 24](https://raw.githubusercontent.com/cloudnode-pro/modrinth-publish/v2/Dockerfile).
+
+Validation: the exact eight-task Fabric compilation command in **Manual build commands** passed under the installed JDK 26 after granting access to the existing Gradle cache. The two client-only `compileJava` tasks reported `NO-SOURCE`; all other compilation outputs were up to date. Source review compared all workflow selectors with the included loader modules, checked the legacy packaging filename/task against its Gradle definition, and reviewed the upstream Action runtime declarations. As required by `AGENTS.md`, no additional test suites or packaging tasks were run. The release-helper tests, Forge/Beta packaging, and GitHub workflows were not executed; no release was published.
+
 ## Client-only module names (2026-11-06)
 
 | Previous module | Current module |
@@ -72,7 +91,7 @@ Beta uses BINY `b1.7.3+e1fe071`, Fabric Loader `0.19.3`, StationAPI `2.0.0-alpha
 | `forge-1.12.2` | `forge-1.12.2-client` |
 | `forge-1.21.1` | `forge-1.21.1-client` |
 
-The module directories, conditional Gradle project inclusions, and archive base names now use the explicit `-client` suffix. Existing source trees, local build outputs, and run data moved with their directories. The manual build, GitHub release, CurseForge release, and archived Modrinth selectors use the new Beta and Forge 1.21.1 target names. Centralized release metadata and existing release-test fixtures use the corresponding new project tasks, artifact names, and bundle paths. Forge 1.12.2 remains a manual Gradle target outside release automation.
+The module directories, conditional Gradle project inclusions, and archive base names now use the explicit `-client` suffix. Existing source trees, local build outputs, and run data moved with their directories. The manual build, GitHub release, CurseForge release, and archived Modrinth selectors use the new Beta and Forge 1.21.1 target names. Centralized release metadata and existing release-test fixtures use the corresponding new project tasks, artifact names, and bundle paths. Forge 1.12.2 was subsequently added to the same build/release automation, as described in **Build workflow coverage and Action runtimes** above.
 
 Production jar filenames, version properties, proposed release tags, runtime mod identifiers, and saved configuration/cache paths are retained. In particular, Forge 1.12.2 still reads `.fbxplayermodels/forge-1.12.2/`. Earlier validation commands and artifact/hash records below retain the module paths used at the time; use the current names for new Gradle commands.
 
