@@ -47,11 +47,11 @@ class DuplicatePublicationTest(unittest.TestCase):
 
 class ReleaseSelectionTest(unittest.TestCase):
     def test_all_selects_each_supported_port(self):
-        self.assertEqual({'fabric-1.21.1', 'fabric-1.21.1-client', 'fabric-26.3', 'fabric-26.3-client', 'forge-1.21.1', 'fabric-b1.7.3'},
+        self.assertEqual({'fabric-1.21.1', 'fabric-1.21.1-client', 'fabric-26.3', 'fabric-26.3-client', 'forge-1.21.1-client', 'fabric-b1.7.3-client'},
                          set(selected_targets('all')))
 
     def test_single_target_stays_single(self):
-        self.assertEqual(['forge-1.21.1'], selected_targets('forge-1.21.1'))
+        self.assertEqual(['forge-1.21.1-client'], selected_targets('forge-1.21.1-client'))
 
     def test_invalid_target_is_rejected(self):
         with self.assertRaises(ValueError):
@@ -70,7 +70,7 @@ class GitHubPublicationTest(unittest.TestCase):
             'BUILD_COMMIT': 'a' * 40, 'RELEASE_NOTES': 'First line\nLiteral `$(command)`\nLast line',
         }).start()
         self.rows = []
-        for target in ['fabric-b1.7.3', 'forge-1.21.1']:
+        for target in ['fabric-b1.7.3-client', 'forge-1.21.1-client']:
             directory = self.root / '.release' / target
             directory.mkdir(parents=True)
             filename = f'{target}.jar'

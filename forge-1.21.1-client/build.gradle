@@ -8,7 +8,7 @@ version = project.forge_1211_mod_version
 group = rootProject.maven_group
 
 base {
-	archivesName = "${rootProject.archives_base_name}-forge-1.21.1"
+	archivesName = "${rootProject.archives_base_name}-forge-1.21.1-client"
 }
 
 java {

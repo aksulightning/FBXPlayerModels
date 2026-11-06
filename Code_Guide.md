@@ -54,8 +54,9 @@ Production packaging commands for the user to trigger individually:
 | Fabric 1.21.1 Client Only | Java 21+ / release 21 | `bash ./gradlew :fabric-1.21.1-client:remapJar` | `fbx-player-models-client-v2.0.0+1.21.1+mc1.21.1.jar` |
 | Fabric 26.3 | Java 25+ / release 25 | `bash ./gradlew :fabric-26.3:jar` | `fbx-player-models-v2.0.0+26.3+mc26.3.jar` |
 | Fabric 26.3 Client Only | Java 25+ / release 25 | `bash ./gradlew :fabric-26.3-client:jar` | `fbx-player-models-client-v2.0.0+26.3+mc26.3.jar` |
-| Forge 1.21.1 | Java 21+ / Java 21 toolchain | `bash ./gradlew :forge-1.21.1:jarJar` | `fbx-player-models-forge-v2.0.0+1.21.1+mc1.21.1.jar` |
-| Babric Beta 1.7.3 | Java 21+ / Java 17 toolchain | `bash ./gradlew :fabric-b1.7.3:remapJar` | `fbx-player-models-v2.0.0+b1.7.3+mcb1.7.3.jar` |
+| Forge 1.21.1 Client Only | Java 21+ / Java 21 toolchain | `bash ./gradlew :forge-1.21.1-client:jarJar` | `fbx-player-models-forge-v2.0.0+1.21.1+mc1.21.1.jar` |
+| Forge 1.12.2 Client Only | Java 25+ / Java 8 toolchain | `bash ./gradlew :forge-1.12.2-client:reobfJar` | `fbx-player-models-client-forge-v2.0.0+1.12.2+mc1.12.2.jar` |
+| Babric Beta 1.7.3 Client Only | Java 21+ / Java 17 toolchain | `bash ./gradlew :fabric-b1.7.3-client:remapJar` | `fbx-player-models-v2.0.0+b1.7.3+mcb1.7.3.jar` |
 
 The imported Forge port uses Forge `52.1.16`, ForgeGradle `7.0.40`, JarJar `0.2.3`, official Mojang mappings, and Java 21. Its ordinary `jar` has the `slim` classifier; publish only the `jarJar` production artifact containing jgltf/Jackson dependencies and the existing NFD/Assimp native resources.
 
@@ -63,11 +64,36 @@ Beta uses BINY `b1.7.3+e1fe071`, Fabric Loader `0.19.3`, StationAPI `2.0.0-alpha
 
 `settings.gradle` recognizes both `fabric-*` and `forge-*` explicit task paths and configures only requested loader targets. Prefer explicit target tasks so unrelated loader plugins and toolchains do not need to resolve together.
 
+## Client-only module names (2026-11-06)
+
+| Previous module | Current module |
+| --- | --- |
+| `fabric-b1.7.3` | `fabric-b1.7.3-client` |
+| `forge-1.12.2` | `forge-1.12.2-client` |
+| `forge-1.21.1` | `forge-1.21.1-client` |
+
+The module directories, conditional Gradle project inclusions, and archive base names now use the explicit `-client` suffix. Existing source trees, local build outputs, and run data moved with their directories. The manual build, GitHub release, CurseForge release, and archived Modrinth selectors use the new Beta and Forge 1.21.1 target names. Centralized release metadata and existing release-test fixtures use the corresponding new project tasks, artifact names, and bundle paths. Forge 1.12.2 remains a manual Gradle target outside release automation.
+
+Production jar filenames, version properties, proposed release tags, runtime mod identifiers, and saved configuration/cache paths are retained. In particular, Forge 1.12.2 still reads `.fbxplayermodels/forge-1.12.2/`. Earlier validation commands and artifact/hash records below retain the module paths used at the time; use the current names for new Gradle commands.
+
+Initial validation: the exact eight-task Fabric compilation command in **Manual build commands** passed under the installed JDK 26. The two client-only `compileJava` tasks reported `NO-SOURCE`; the remaining compilation outputs were up to date. The wrapper initially could not write its cache lock in the workspace sandbox; the same command succeeded with access to the existing Gradle cache. This initial validation followed the `AGENTS.md` restriction and did not compile/test Forge or Beta.
+
+Follow-up validation: the user explicitly authorized testing the renamed modules. All of these commands passed:
+
+```bash
+JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64 bash ./gradlew :fabric-b1.7.3-client:compileJava :fabric-b1.7.3-client:test -Dorg.gradle.java.installations.paths=/usr/lib/jvm/temurin-17-jdk-amd64
+JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64 bash ./gradlew :forge-1.21.1-client:compileJava :forge-1.21.1-client:test
+JAVA_HOME=/usr/lib/jvm/temurin-26-jdk-amd64 bash ./gradlew :forge-1.12.2-client:compileJava :forge-1.12.2-client:test -Dorg.gradle.java.installations.paths=/usr/lib/jvm/zulu-8-amd64,/usr/lib/jvm/temurin-17-jdk-amd64
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s .github/scripts/tests -p 'test_release_*.py' -v
+```
+
+Beta ran 8 tests and Forge 1.21.1 ran 22, all with zero failures, errors, or skips. Beta's dependent `client-common:test` task was up to date with its 8 passing tests. Forge 1.12.2 compiled successfully using Java 8; its test task reported `NO-SOURCE` because it has no test sources. All 20 release metadata/publication tests passed; publication operations in those tests are mocked. An initial Forge 1.12.2 attempt with JDK 21 could not load RetroFuturaGradle's Java 25 bytecode, so the successful command uses JDK 26 to run Gradle while retaining Java 8/17 toolchains. The build table now records that plugin runtime requirement. Existing deprecated/unchecked API notices remain. No packaging tasks, workflows, game launches, or actual publication were performed.
+
 ## Forge 1.12.2 client-only port (2026-11-06)
 
-`forge-1.12.2` is a separate Forge-only Minecraft 1.12.2 target. All of its Java code lives under `com.aksulightning.fbxplayermodels.forge1122`. The legacy target does not depend on `common` or `client-common`: their Java 21/17 bytecode cannot run on a normal Java 8 Forge installation. The existing modern targets remain available.
+`forge-1.12.2-client` is a separate client-only Forge Minecraft 1.12.2 target. All of its Java code lives under `com.aksulightning.fbxplayermodels.forge1122`. The legacy target does not depend on `common` or `client-common`: their Java 21/17 bytecode cannot run on a normal Java 8 Forge installation. The existing modern targets remain available.
 
-The target uses RetroFuturaGradle `2.0.3`, MCP stable `39`, a Java 8 compiler/runtime, and Minecraft's LWJGL 2. RetroFuturaGradle's 1.12.2 SDK is pinned upstream to Forge `14.23.5.2847`; the mod accepts that version and newer 1.12.2 Forge installations. `forge_1122_loader_version` records that SDK version. The root Gradle 9.6 wrapper runs on a modern JDK; RFG additionally uses installed Java 8 and Java 17 toolchains for Minecraft preparation. Plugin resolution uses the upstream GTNH Maven repository. References: [Forge development environment](https://github.com/CleanroomMC/ForgeDevEnv) and [RFG toolchain source](https://github.com/GTNewHorizons/RetroFuturaGradle/blob/master/plugin/src/main/java/com/gtnewhorizons/retrofuturagradle/IMinecraftyExtension.java).
+The target uses RetroFuturaGradle `2.0.3`, MCP stable `39`, a Java 8 compiler/runtime, and Minecraft's LWJGL 2. RetroFuturaGradle's 1.12.2 SDK is pinned upstream to Forge `14.23.5.2847`; the mod accepts that version and newer 1.12.2 Forge installations. `forge_1122_loader_version` records that SDK version. Launch the root Gradle 9.6 wrapper with Java 25 or newer to load the RFG plugin; RFG additionally uses installed Java 8 and Java 17 toolchains for Minecraft preparation. Plugin resolution uses the upstream GTNH Maven repository. References: [Forge development environment](https://github.com/CleanroomMC/ForgeDevEnv) and [RFG toolchain source](https://github.com/GTNewHorizons/RetroFuturaGradle/blob/master/plugin/src/main/java/com/gtnewhorizons/retrofuturagradle/IMinecraftyExtension.java).
 
 The `@Mod` entrypoint and `mcmod.info` both declare client-only behavior. The mod ID is `fbxplayermodels`, accepted Minecraft range is `[1.12.2]`, and the remote-version predicate accepts an unmodified peer. There are no network channels, model transfers, server initializers, entities, or server commands. The `/skin` command uses Forge's client command handler. World rendering is limited to the local player in single-player and resolved local-network sessions, following the existing address policy; public-server connections show the existing inactive notice once per connection. Preview and settings work without a world.
 
@@ -82,11 +108,11 @@ This target currently has the legacy port's feature scope: FBX import and proced
 Use explicit project tasks so this SDK is not configured during Fabric-only builds:
 
 ```bash
-bash ./gradlew :forge-1.12.2:compileJava
-bash ./gradlew :forge-1.12.2:reobfJar
+bash ./gradlew :forge-1.12.2-client:compileJava
+bash ./gradlew :forge-1.12.2-client:reobfJar
 ```
 
-`jar` is the development artifact with a `-dev.jar` suffix. Only `reobfJar` converts Minecraft references to production SRG names and produces `forge-1.12.2/build/libs/fbx-player-models-client-forge-v2.0.0+1.12.2+mc1.12.2.jar`. Packaging and gameplay are separate from compilation and are not run by the prescribed validation command. No release automation or publication is changed by this port.
+`jar` is the development artifact with a `-dev.jar` suffix. Only `reobfJar` converts Minecraft references to production SRG names and produces `forge-1.12.2-client/build/libs/fbx-player-models-client-forge-v2.0.0+1.12.2+mc1.12.2.jar`. Packaging and gameplay are separate from compilation and are not run by the prescribed validation command. No release automation or publication is changed by this port.
 
 Validation: the prescribed eight Fabric compile tasks passed on JDK 26. The user separately authorized `:forge-1.12.2:compileJava`; after correcting the data-directory field to MCP stable 39's `gameDir`, this passed with a Java 8 compiler. The final compile also passed after the controls and renderer changes. No additional test suite, formatter, packaging task, Minecraft client, or release workflow was run. Runtime rendering, desktop file picker behavior, and production SRG packaging remain unverified.
 
@@ -154,7 +180,7 @@ The initial audit found that Forge's Lite implementation lacked Default shape ke
 | Updated UpAxis-aware importer and binary shape-key recovery | Present |
 | Model-sharing protocol and FBX entities | Absent by client-only design |
 
-`forge-1.21.1/build.gradle` now compiles `common/src/main/java` and resources directly, replacing the Lite `client-common` input. This supplies the same `ClientSkin`, shape profiles, signed-axis conversion, voice settings, audio envelope/input and platform contracts as Fabric. The Forge mod ID remains `fbx_player_models_lite`; `.fbxplayermodels/.config` and cached skin paths are retained. Legacy selections, enabled preference, rig/animation mappings and first-person settings remain readable; missing shape/voice fields initialize safely. Fallback/dynamic textures use the common asset namespace, and the legacy fallback namespace remains packaged as an alias.
+`forge-1.21.1-client/build.gradle` now compiles `common/src/main/java` and resources directly, replacing the Lite `client-common` input. This supplies the same `ClientSkin`, shape profiles, signed-axis conversion, voice settings, audio envelope/input and platform contracts as Fabric. The Forge mod ID remains `fbx_player_models_lite`; `.fbxplayermodels/.config` and cached skin paths are retained. Legacy selections, enabled preference, rig/animation mappings and first-person settings remain readable; missing shape/voice fields initialize safely. Fallback/dynamic textures use the common asset namespace, and the legacy fallback namespace remains packaged as an alias.
 
 The full Fabric 1.21.1 importer/model/normalizer sources were ported to Forge's Mojang names. Assimp and binary fallback use `FbxCoordinateSpace`, apply scene/node transforms consistently to geometry and skeletons, and recover shape deltas when needed. Mesh shape keys survive material recovery and normalization. Forge retains its loader-specific texture upload and player-pose adapters. `SkinnedModel` composes Default profiles, authored/procedural animation and local voice, including descendant bone motion, unchanged base geometry and hidden-head first-person rendering.
 
@@ -175,7 +201,7 @@ The existing deprecated Forge `RenderLevelStageEvent.getPoseStack()` and Gradle 
 
 ## Beta 1.7.3 stationary sneaking fix (2026-11-06)
 
-`fabric-b1.7.3` uses `BetaPlayerPoseAdapter` for both third-person and hidden-head first-person player geometry. Its walking/sneaking limb calculation previously replaced a near-zero native walking amplitude with a nonzero amplitude and a phase based on player age. Holding sneak while standing still therefore generated a repeating walk cycle, and stopping a sneak walk restarted that artificial cycle as the real walking amplitude faded.
+`fabric-b1.7.3-client` uses `BetaPlayerPoseAdapter` for both third-person and hidden-head first-person player geometry. Its walking/sneaking limb calculation previously replaced a near-zero native walking amplitude with a nonzero amplitude and a phase based on player age. Holding sneak while standing still therefore generated a repeating walk cycle, and stopping a sneak walk restarted that artificial cycle as the real walking amplitude faded.
 
 The adapter now always uses `player.walkAnimationProgress` and the interpolated `lastWalkAnimationSpeed`/`walkAnimationSpeed` values. Zero native amplitude leaves the crouched limbs still, while movement continues to animate them and deceleration follows the game's interpolation. The generated crouching posture, head look, held-item/action poses, and animation selection retain their existing paths.
 
@@ -293,11 +319,15 @@ root/
     src/main/resources/...
   session-policy/
     src/main/java/...
-  forge-1.21.1/
+  forge-1.21.1-client/
     build.gradle
     src/main/java/...
     src/main/resources/META-INF/mods.toml
-  fabric-b1.7.3/
+  forge-1.12.2-client/
+    build.gradle
+    src/main/java/...
+    src/main/resources/mcmod.info
+  fabric-b1.7.3-client/
     build.gradle
     src/main/java/...
     src/main/resources/fabric.mod.json

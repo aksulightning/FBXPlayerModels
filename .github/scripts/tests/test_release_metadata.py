@@ -28,15 +28,15 @@ class ArtifactVerificationTest(unittest.TestCase):
         }).start()
         (root / 'gradle.properties').write_text(
             'archives_base_name=fbx-player-models\nforge_1211_mod_version=2.0.0+1.21.1\n')
-        self.bundle = root / '.release/forge-1.21.1'
+        self.bundle = root / '.release/forge-1.21.1-client'
         self.bundle.mkdir(parents=True)
         self.jar = self.bundle / 'fbx-player-models-forge-v2.0.0+1.21.1+mc1.21.1.jar'
         self.jar.write_bytes(b'reviewed artifact')
         self.manifest = {
-            'target': 'forge-1.21.1', 'minecraft': '1.21.1', 'loader': 'forge', 'java': '21',
-            'task': ':forge-1.21.1:jarJar', 'filename': self.jar.name,
+            'target': 'forge-1.21.1-client', 'minecraft': '1.21.1', 'loader': 'forge', 'java': '21',
+            'task': ':forge-1.21.1-client:jarJar', 'filename': self.jar.name,
             'mod_version': '2.0.0+1.21.1', 'release_version': '2.0.0',
-            'artifact': 'fbx-player-models-forge-1.21.1', 'proposed_tag': 'nightly-forge-1.21.1',
+            'artifact': 'fbx-player-models-forge-1.21.1-client', 'proposed_tag': 'nightly-forge-1.21.1',
             'commit': 'a' * 40, 'run_id': '123', 'repository': 'aksulightning/FBXPlayerModels',
             'source_branch': 'modrinth-last-update',
             'sha256': hashlib.sha256(self.jar.read_bytes()).hexdigest(),
@@ -47,7 +47,7 @@ class ArtifactVerificationTest(unittest.TestCase):
         (self.bundle / 'release-manifest.json').write_text(json.dumps(self.manifest))
 
     def test_manual_release_keeps_its_original_branch_and_version(self):
-        verified = release_metadata.verify_bundle('forge-1.21.1')
+        verified = release_metadata.verify_bundle('forge-1.21.1-client')
         self.assertEqual('2.0.0+forge.1.21.1', verified['version'])
         self.assertEqual('forge', verified['loader'])
 
@@ -55,7 +55,7 @@ class ArtifactVerificationTest(unittest.TestCase):
         os.environ['BUILD_SOURCE_BRANCH'] = 'main'
         self.manifest['source_branch'] = 'main'
         self.write_manifest()
-        self.assertEqual('1.21.1', release_metadata.verify_bundle('forge-1.21.1')['minecraft'])
+        self.assertEqual('1.21.1', release_metadata.verify_bundle('forge-1.21.1-client')['minecraft'])
 
     def test_wrong_branch_and_commit_are_rejected(self):
         for key, value in [('source_branch', 'main'), ('commit', 'b' * 40), ('run_id', '456')]:
@@ -63,18 +63,18 @@ class ArtifactVerificationTest(unittest.TestCase):
             self.manifest[key] = value
             self.write_manifest()
             with self.assertRaises(ValueError):
-                release_metadata.verify_bundle('forge-1.21.1')
+                release_metadata.verify_bundle('forge-1.21.1-client')
             self.manifest[key] = original
 
     def test_changed_artifact_is_rejected(self):
         self.jar.write_bytes(b'different artifact')
         with self.assertRaises(ValueError):
-            release_metadata.verify_bundle('forge-1.21.1')
+            release_metadata.verify_bundle('forge-1.21.1-client')
 
     def test_relabeling_a_built_version_is_rejected(self):
         os.environ['RELEASE_VERSION'] = '3.0.0'
         with self.assertRaises(ValueError):
-            release_metadata.verify_bundle('forge-1.21.1')
+            release_metadata.verify_bundle('forge-1.21.1-client')
 
     def test_client_fabric_has_distinct_filename_version_and_changelog(self):
         root = release_metadata.ROOT

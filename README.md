@@ -40,11 +40,13 @@ Install either the full or client-only Fabric 26.3 jar in an instance; both use 
 
 Forge includes Default shape-key sliders/reset and previews, Voice Shape bone or shape-key mappings, and UpAxis-aware FBX import with binary shape recovery. Open **Settings → Shape Key Settings** or **Voice Shape Settings**. Voice Shape supports the local microphone and optional Simple Voice Chat input, with manual preview and Test Pulse for setup. Settings and animations stay on your client.
 
-The Forge mod ID and saved model selections are retained. Simple Voice Chat is optional; if installed, its API must be version 2.6.0 or newer. Use the production `fbx-player-models-forge-v2.0.0+1.21.1+mc1.21.1.jar`, built through `:forge-1.21.1:jarJar`.
+The Forge mod ID and saved model selections are retained. Simple Voice Chat is optional; if installed, its API must be version 2.6.0 or newer. Use the production `fbx-player-models-forge-v2.0.0+1.21.1+mc1.21.1.jar`, built through `:forge-1.21.1-client:jarJar`.
+
+The client-only module names are `fabric-b1.7.3-client`, `forge-1.12.2-client`, and `forge-1.21.1-client`. Gradle tasks use these names, as do the release selectors for Beta and Forge 1.21.1. Existing production jar filenames and saved settings paths are retained.
 
 ## Use a model
 
-For Forge 1.12.2, use the separate `forge-1.12.2` target with Java 8 and Forge 14.23.5.2847 or newer. Open **FBX Models** from the title screen, press **K**, or use `/skin`. This legacy port includes local FBX selection, preview, procedural rig animation, bone binding, scale, first-person body, and camera settings. It does not include the modern shape-key, Voice Shape, GLB/OBJ, or imported animation-clip features. Build its production jar with `bash ./gradlew :forge-1.12.2:reobfJar`; build/toolchain details are in [Code_Guide.md](Code_Guide.md). Its settings and model cache use `.fbxplayermodels/forge-1.12.2/` and it requires no server installation.
+For Forge 1.12.2, use the separate `forge-1.12.2-client` target with Java 8 and Forge 14.23.5.2847 or newer. Open **FBX Models** from the title screen, press **K**, or use `/skin`. This legacy port includes local FBX selection, preview, procedural rig animation, bone binding, scale, first-person body, and camera settings. It does not include the modern shape-key, Voice Shape, GLB/OBJ, or imported animation-clip features. Build its production jar with `bash ./gradlew :forge-1.12.2-client:reobfJar`; build/toolchain details are in [Code_Guide.md](Code_Guide.md). Its settings and model cache use `.fbxplayermodels/forge-1.12.2/` and it requires no server installation.
 
 1. Install the correct variant and its loader dependencies. Beta also requires StationAPI.
 2. Start a single-player world or join a supported LAN game.

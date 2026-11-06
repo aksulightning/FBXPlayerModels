@@ -8,7 +8,7 @@ version = project.fabric_b173_mod_version
 group = rootProject.maven_group
 
 base {
-	archivesName = "${rootProject.archives_base_name}-fabric-b1.7.3"
+	archivesName = "${rootProject.archives_base_name}-fabric-b1.7.3-client"
 }
 
 repositories {

@@ -11,8 +11,8 @@ on:
           - all
           - fabric-1.21.1
           - fabric-1.21.1-client
-          - forge-1.21.1
-          - fabric-b1.7.3
+          - forge-1.21.1-client
+          - fabric-b1.7.3-client
       channel:
         description: Modrinth release channel
         type: choice
