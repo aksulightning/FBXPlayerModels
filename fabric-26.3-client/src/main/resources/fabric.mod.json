@@ -1,0 +1,44 @@
+{
+	"schemaVersion": 1,
+	"id": "fbx-player-models",
+	"version": "${version}",
+	"name": "FBX Player Models (Client Only)",
+	"description": "Client-only Fabric 26.3 FBX player models with local rig, animation, shape-key, and voice settings.",
+	"authors": [
+		"1TheCrazy",
+		"Aksu Lightning"
+	],
+	"contact": {
+		"sources": "https://github.com/aksulightning/FBXPlayerModels",
+		"homepage": "https://github.com/aksulightning/FBXPlayerModels"
+	},
+	"license": "MIT",
+	"icon": "assets/fbx-player-models/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"me.onethecrazy.FBXPlayerModelsClient"
+		],
+		"modmenu": [
+			"me.onethecrazy.ModMenuIntegration"
+		],
+		"voicechat": [
+			"com.aksulightning.fbxplayermodels.voice.SimpleVoiceChatPlugin"
+		]
+	},
+	"mixins": [
+		{
+			"config": "fbx-player-models.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"voicechat": "*"
+	}
+}

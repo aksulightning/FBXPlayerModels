@@ -10,10 +10,13 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[2]
 CLIENT_FABRIC_TARGET = 'fabric-1.21.1-client'
+CLIENT_FABRIC_TARGETS = {CLIENT_FABRIC_TARGET, 'fabric-26.3-client'}
 TARGETS = {
     'fabric-1.21.1': ('1.21.1', 'fabric', '21', 'remapJar', 'fabric_1211_mod_version', 'nightly-1.21.1'),
     CLIENT_FABRIC_TARGET: ('1.21.1', 'fabric', '21', 'remapJar', 'fabric_1211_client_mod_version', 'nightly-fabric-client-1.21.1'),
     'fabric-26.2': ('26.2', 'fabric', '25', 'jar', 'fabric_262_mod_version', 'nightly-26.2'),
+    'fabric-26.3': ('26.3', 'fabric', '25', 'jar', 'fabric_263_mod_version', 'nightly-26.3'),
+    'fabric-26.3-client': ('26.3', 'fabric', '25', 'jar', 'fabric_263_client_mod_version', 'nightly-fabric-client-26.3'),
     'forge-1.21.1': ('1.21.1', 'forge', '21', 'jarJar', 'forge_1211_mod_version', 'nightly-forge-1.21.1'),
     'fabric-b1.7.3': ('b1.7.3', 'babric', '21', 'remapJar', 'fabric_b173_mod_version', 'nightly-b1.7.3'),
 }
@@ -28,7 +31,7 @@ def metadata(target):
             properties[key.strip()] = value.strip()
     base = properties['archives_base_name']
     version = properties[version_key]
-    variant = '-client' if target == CLIENT_FABRIC_TARGET else '-forge' if loader == 'forge' else ''
+    variant = '-client' if target in CLIENT_FABRIC_TARGETS else '-forge' if loader == 'forge' else ''
     filename = f"{base}{variant}-v{version}+mc{minecraft}.jar"
     return {
         'target': target, 'minecraft': minecraft, 'loader': loader, 'java': java,
@@ -48,8 +51,8 @@ def output(key, value):
 
 
 def target_release_note(target):
-    if target == CLIENT_FABRIC_TARGET:
-        return (ROOT / 'release-notes/fabric-1.21.1-client.md').read_text().strip()
+    if target in CLIENT_FABRIC_TARGETS:
+        return (ROOT / f'release-notes/{target}.md').read_text().strip()
     return ''
 
 
@@ -109,7 +112,7 @@ def verify_bundle(target):
         raise ValueError('Invalid release version characters')
     if version != expected['release_version']:
         raise ValueError(f"Artifact was built as {expected['release_version']}; build a new jar to change its version")
-    label = 'fabric-client' if target == CLIENT_FABRIC_TARGET else expected['loader']
+    label = 'fabric-client' if target in CLIENT_FABRIC_TARGETS else expected['loader']
     version_number = f"{version}+{label}.{expected['minecraft']}"
     if len(version_number) > 32:
         raise ValueError('Modrinth version including loader/game suffix exceeds 32 characters')

@@ -39,6 +39,14 @@ if (includeAllLoaderProjects || requestedLoaderProjects.contains("fabric-26.2"))
 	include("fabric-26.2")
 }
 
+if (includeAllLoaderProjects || requestedLoaderProjects.contains("fabric-26.3")) {
+	include("fabric-26.3")
+}
+
+if (includeAllLoaderProjects || requestedLoaderProjects.contains("fabric-26.3-client")) {
+	include("fabric-26.3-client")
+}
+
 if (includeAllLoaderProjects || requestedLoaderProjects.contains("fabric-b1.7.3")) {
 	include("fabric-b1.7.3")
 }

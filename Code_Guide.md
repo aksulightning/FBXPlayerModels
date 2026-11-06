@@ -2,17 +2,17 @@
 
 ## Release variants and loader support
 
-This release maintains the full mod on Fabric 1.21.1 and 26.2 and adds client-only Fabric 1.21.1, Forge 1.21.1, and Babric/StationAPI Beta 1.7.3 variants. Each target produces a separate jar; there is no universal jar. NeoForge, Quilt, and Architectury are not used.
+This release maintains the full mod on Fabric 1.21.1, 26.2, and 26.3 and adds client-only Fabric 1.21.1, Fabric 26.3, Forge 1.21.1, and Babric/StationAPI Beta 1.7.3 variants. Each target produces a separate jar; there is no universal jar. NeoForge, Quilt, and Architectury are not used.
 
-The full Fabric variants support single-player and Open to LAN model sharing. Fabric 1.21.1 Client Only, Forge, and Beta retain local-player rendering only and register no model-sharing packets, server stores, or FBX entities. The imported ports retain their existing configuration formats, paths, and mod identifiers; their display names describe the client-only variant.
+The full Fabric variants support single-player and Open to LAN model sharing. Fabric 1.21.1 Client Only, Fabric 26.3 Client Only, Forge, and Beta retain local-player rendering only and register no model-sharing packets, server stores, or FBX entities. The client-only ports retain their configuration formats, paths, and mod identifiers; their display names describe the client-only variant.
 
-`common` serves the full modern Fabric mod, Fabric 1.21.1 Client Only, and Forge, including their shared Java 21 shape/voice/model/config code. Forge compiles the common sources directly into its own source set to avoid split Java packages. `client-common` retains the separate Java 17 Lite model/config/platform code for Beta, which includes its compiled output. No jar includes both common variants, avoiding duplicate model/config classes.
+`common` serves the full modern Fabric mod, both client-only Fabric variants, and Forge, including their shared Java 21 shape/voice/model/config code. Forge compiles the common sources directly into its own source set to avoid split Java packages. `client-common` retains the separate Java 17 Lite model/config/platform code for Beta, which includes its compiled output. No jar includes both common variants, avoiding duplicate model/config classes.
 
 `session-policy/src/main/java` is a small shared source directory, compiled into `common`, `client-common`, and Forge. It has no Minecraft, loader, or rendering dependencies.
 
 ## Supported targets
 
-The repository maintains two full-mod Fabric targets, plus the three client-only ports described below. Each loader module has its own version-sensitive source, resources, metadata, and production jar. Full Fabric, Fabric 1.21.1 Client Only, and Forge use `common`; Beta uses `client-common`. Neither shared module is a standalone Minecraft distribution.
+The repository maintains three full-mod Fabric targets, plus the four client-only ports described below. Each loader module has its own version-sensitive source, resources, metadata, and production jar. Full Fabric, both client-only Fabric variants, and Forge use `common`; Beta uses `client-common`. Neither shared module is a standalone Minecraft distribution.
 
 ### Target and toolchain versions
 
@@ -21,6 +21,8 @@ The repository maintains two full-mod Fabric targets, plus the three client-only
 | `fabric-1.21.1` | `1.21.1` | Yarn `1.21.1+build.3` | 21 | `1.16.2` | `0.16.14` | `0.116.6+1.21.1` |
 | `fabric-1.21.1-client` | `1.21.1` | Yarn `1.21.1+build.3` | 21 | `1.16.2` | `0.16.14` | `0.116.6+1.21.1` |
 | `fabric-26.2` | `26.2` | unobfuscated game names; no Yarn | 25 | `1.17.17` | `0.19.3` | `0.156.0+26.2` |
+| `fabric-26.3` | `26.3` | unobfuscated game names; no Yarn | 25 | `1.17.21` | `0.20.1` | `0.165.2+26.3` |
+| `fabric-26.3-client` | `26.3` | unobfuscated game names; no Yarn | 25 | `1.17.21` | `0.20.1` | `0.165.2+26.3` |
 
 ### Mod and production-build versions
 
@@ -29,10 +31,12 @@ The repository maintains two full-mod Fabric targets, plus the three client-only
 | `fabric-1.21.1` | `2.0.0+1.21.1` | `11.0.3` | `3.3.3` | `:fabric-1.21.1:remapJar` | `fbx-player-models-v2.0.0+1.21.1+mc1.21.1.jar` |
 | `fabric-1.21.1-client` | `2.0.0+1.21.1` | `11.0.3` | `3.3.3` | `:fabric-1.21.1-client:remapJar` | `fbx-player-models-client-v2.0.0+1.21.1+mc1.21.1.jar` |
 | `fabric-26.2` | `2.0.0+26.2` | `20.0.1` | `3.4.1` | `:fabric-26.2:jar` | `fbx-player-models-v2.0.0+26.2+mc26.2.jar` |
+| `fabric-26.3` | `2.0.0+26.3` | `21.0.0` | `3.4.3` | `:fabric-26.3:jar` | `fbx-player-models-v2.0.0+26.3+mc26.3.jar` |
+| `fabric-26.3-client` | `2.0.0+26.3` | `21.0.0` | `3.4.3` | `:fabric-26.3-client:jar` | `fbx-player-models-client-v2.0.0+26.3+mc26.3.jar` |
 
-`fabric-1.21.1` uses Yarn and produces its production artifact through Loom's `remapJar` task. Minecraft 26.2 exposes unobfuscated game names, so that module deliberately omits Yarn and produces its production artifact through `jar`.
+`fabric-1.21.1` uses Yarn and produces its production artifact through Loom's `remapJar` task. Minecraft 26.2 and 26.3 expose unobfuscated game names, so those modules deliberately omit Yarn and produce their production artifacts through `jar`.
 
-Production jars are written to `<module>/build/libs/`. Modern Fabric jars include the `common` output and bundle jgltf `2.0.4`, Native File Dialog, and Assimp natives for Windows, Linux, and macOS on x64 and arm64. The Gradle wrapper is `9.5.1`. DevAuth is development-only: Fabric 1.21.1 uses `1.2.1`, while Fabric 26.2 uses `1.2.2`. The imported ports have separate dependencies and toolchains described below.
+Production jars are written to `<module>/build/libs/`. Modern Fabric jars include the `common` output and bundle jgltf `2.0.4`, Native File Dialog, and Assimp natives for Windows, Linux, and macOS on x64 and arm64. The Gradle wrapper is `9.6.0`. DevAuth is development-only: Fabric 1.21.1 uses `1.2.1`, while Fabric 26.2 and 26.3 use `1.2.2`. The imported ports have separate dependencies and toolchains described below.
 
 ## Manual build commands
 
@@ -44,7 +48,13 @@ The prescribed modern Fabric compilation command remains:
 bash ./gradlew :fabric-1.21.1:compileJava :fabric-1.21.1:compileClientJava :fabric-26.2:compileJava :fabric-26.2:compileClientJava
 ```
 
-Use Java 25 or newer to launch the combined modern compilation. The supported source release levels remain Java 21 for 1.21.1 and Java 25 for 26.2.
+The user authorized the two additional 26.3 compilation tasks for this port on 2026-11-06. The extended command passed:
+
+```bash
+bash ./gradlew :fabric-1.21.1:compileJava :fabric-1.21.1:compileClientJava :fabric-26.2:compileJava :fabric-26.2:compileClientJava :fabric-26.3:compileJava :fabric-26.3:compileClientJava
+```
+
+Use Java 25 or newer to launch the combined modern compilation. The supported source release levels remain Java 21 for 1.21.1 and Java 25 for 26.2/26.3.
 
 Production packaging commands for the user to trigger individually:
 
@@ -53,6 +63,8 @@ Production packaging commands for the user to trigger individually:
 | Fabric 1.21.1 | Java 21+ / release 21 | `bash ./gradlew :fabric-1.21.1:remapJar` | `fbx-player-models-v2.0.0+1.21.1+mc1.21.1.jar` |
 | Fabric 1.21.1 Client Only | Java 21+ / release 21 | `bash ./gradlew :fabric-1.21.1-client:remapJar` | `fbx-player-models-client-v2.0.0+1.21.1+mc1.21.1.jar` |
 | Fabric 26.2 | Java 25+ / release 25 | `bash ./gradlew :fabric-26.2:jar` | `fbx-player-models-v2.0.0+26.2+mc26.2.jar` |
+| Fabric 26.3 | Java 25+ / release 25 | `bash ./gradlew :fabric-26.3:jar` | `fbx-player-models-v2.0.0+26.3+mc26.3.jar` |
+| Fabric 26.3 Client Only | Java 25+ / release 25 | `bash ./gradlew :fabric-26.3-client:jar` | `fbx-player-models-client-v2.0.0+26.3+mc26.3.jar` |
 | Forge 1.21.1 | Java 21+ / Java 21 toolchain | `bash ./gradlew :forge-1.21.1:jarJar` | `fbx-player-models-forge-v2.0.0+1.21.1+mc1.21.1.jar` |
 | Babric Beta 1.7.3 | Java 21+ / Java 17 toolchain | `bash ./gradlew :fabric-b1.7.3:remapJar` | `fbx-player-models-v2.0.0+b1.7.3+mcb1.7.3.jar` |
 
@@ -92,6 +104,24 @@ The client target's `test` task now depends on `common:test`, which covers the s
 The requested release note remains at `release-notes/fabric-1.21.1-client.md`, including the purpose of future-proofing [Aksu's Peaceful Gameplay Pack](https://modrinth.com/modpack/aksus-peaceful-gameplay-pack). Both release destinations append it automatically for this target, retaining custom notes. It now describes the added local shape/voice/import features. The full and client-only Fabric jars share the `fbx-player-models` mod ID; install only one per game instance. Their filenames and Modrinth versions remain distinct: `fbx-player-models-client-v2.0.0+1.21.1+mc1.21.1.jar` and `2.0.0+fabric-client.1.21.1` for the client-only variant.
 
 Validation for this feature addition includes the four prescribed full Fabric compile tasks plus `:fabric-1.21.1-client:compileJava`, `:fabric-1.21.1-client:compileClientJava`, and `:fabric-1.21.1-client:test`, using JDK 26 and the existing Gradle cache. The first run found a missing `FileUtil` import in the adapted local settings screen; adding it resolved the error, and the same command passed. `compileJava` has no sources for this client-only module; `compileClientJava` successfully compiles the shared feature sources and local adapters. The shared `common:test` suite passed 16 tests (eight local model feature contracts plus eight LAN address-policy cases), and all 20 release-helper tests also passed. Inspection of the compiled client output confirmed the new editors/importers/voice adapter and no FBX protocol/server classes. No microphone or OpenGL display was opened by those tests. Production jar packaging, in-game UI/deformation/audio, and modpack behavior have not been exercised; no release was dispatched or published.
+
+## Fabric 26.3 client-only variant (2026-11-06)
+
+`fabric-26.3-client` ports the local-player behavior of `fabric-1.21.1-client` onto the existing full 26.3 renderer and game APIs. Its metadata declares environment `client`, client/Mod Menu/optional voice-chat entrypoints, and only client mixins. `FBXPlayerModelsMod` is a client-side constants/logger holder, not a main/server initializer. The module registers `/skin` locally and no upload-permission command, model-sharing payload, server store, or FBX entity. Its main Java source set is empty.
+
+The module compiles a selected `localModelFeatures` set directly from `fabric-26.3/src/client/java`: importers, model/animation math, normalization, shape-aware geometry/cache classes, deferred `CustomSkinRenderData`, Shape Key Settings, Voice Shape Settings, and the searchable Voice Target picker. This shares the 26.3 UpAxis-aware importer, binary shape recovery, deformation, live limb/swing poses, and editor behavior. The Gradle project does not depend on the full Fabric module or include its main source set.
+
+The local `SkinManager` keeps one cache bound to the selected model hash, reads/writes the existing `.fbxplayermodels/.config` and `skins` paths, and reapplies saved rig bindings, clip mappings, Default shape profiles, and Voice Shape settings. Local adapters provide title/config/editor previews, first-person body/hidden-head rendering, camera offsets, animation controls, and microphone/optional Simple Voice Chat input. Selection/reset, disconnect, and shutdown stop local audio capture. The config screen contains Select, Reset, ON/OFF, Settings, and Done controls; uploads and sharing are outside this variant.
+
+The living-entity mixin clears custom data before each player extraction and populates it only for the current local player in an eligible connection. Remote players retain vanilla rendering. Its deferred submission consumes that prepared snapshot and honors final inventory pose overrides. Explicit previews construct their own selected-model snapshots, so they remain usable when world rendering is inactive. First-person hands use the complete 26.3 `FirstPersonHandsAndItemsRenderer` descriptor; body transforms use `PoseStack.rotateDegrees`; mouse controls use SDL-aware `InputConstants.MOUSE_BUTTON_LEFT`.
+
+The connection policy matches the 1.21.1 client-only variant: an in-memory connection requires an integrated server, while remote connections must resolve to an allowed local-network address. It exchanges no custom approval packets and requires no server-side installation. The address policy cannot distinguish a dedicated server or proxy behind a private address; it remains a support policy. Unsupported connections retain vanilla gameplay rendering and receive one local status notice per connection.
+
+Build dependencies reuse the full 26.3 properties: Minecraft 26.3, Java 25, Loom 1.17.21, Fabric Loader 0.20.1, Fabric API 0.165.2+26.3, Mod Menu 21.0.0, LWJGL Assimp/NFD 3.4.3, jgltf 2.0.4, and development-only DevAuth 1.2.2. The separate `fabric_263_client_mod_version` is `2.0.0+26.3`. The `jar` task packages common output with the client implementation as `fbx-player-models-client-v2.0.0+26.3+mc26.3.jar`. Full and client-only jars have the same Fabric mod ID and must be installed separately.
+
+Manual build, GitHub release, and CurseForge release selectors include this seventh target and select it through `all`. Central metadata gives both client-only Fabric versions the `-client` filename and `fabric-client` version suffix, keeping full/client artifacts distinct. The new Modrinth-style version is `2.0.0+fabric-client.26.3`. `release-notes/fabric-26.3-client.md` is appended for this target without applying the 1.21.1-only modpack note. Existing release tests cover both variants' filenames, packaging tasks, provenance verification, version labels, and appended notes.
+
+Validation used the existing approval to run focused tests: the four prescribed Fabric 1.21.1/26.2 compile tasks, the full 26.3 compile tasks, both client-only Fabric compile task pairs, and `:fabric-26.3-client:test` passed together under JDK 26. The initial run found one remaining Yarn `world` field in the local connection-policy adapter; changing it to `level` fixed compilation. Both client-only `compileJava` tasks report `NO-SOURCE`; their `compileClientJava` tasks compile successfully. The new client's test task depends on the 16 shared `common:test` cases; those were already up to date with passing results. All 20 release-helper tests passed again with extended coverage for 26.3 Client Only. Inspection of the 84 compiled client classes found no mod server, protocol, remote-cache, or FBX entity classes. No production packaging, in-game rendering/input/audio, or release/publication was performed.
 
 ## Forge 1.21.1 local shape, voice and importer features
 
@@ -135,7 +165,7 @@ Modern Fabric adds a server-to-client `lan_session` payload containing protocol 
 
 Client `LanSession` binds approval to the receiving play handler. The local in-memory integrated connection is allowed directly; remote connections require both the resolved LAN peer address and the matching approval protocol. On the first ready client tick, the selected model is uploaded and visible remote players are looked up again, covering entities loaded before approval. Unknown, old, dedicated, and public servers leave FBX gameplay features inactive. Minecraft connections are not cancelled. A chat notice appears after 60 waiting ticks; configuration also displays the session status and disables LAN sharing when unavailable.
 
-The session gate covers ordinary player rendering, deferred 26.2 submissions, first-person body rendering, camera offsets, entity-model cache access, appearance synchronization, and world-driven microphone sampling. Explicit editor previews remain usable. The existing enabled preference is never rewritten to implement this restriction.
+The session gate covers ordinary player rendering, deferred 26.2/26.3 submissions, first-person body rendering, camera offsets, entity-model cache access, appearance synchronization, and world-driven microphone sampling. Explicit editor previews remain usable. The existing enabled preference is never rewritten to implement this restriction.
 
 INIT/disconnect resets clear approval, pending shape snapshots, lookup/model waiters, remote skin/settings state, remote voice envelopes, and entity-model caches. Queued responses retain their originating play handler; asynchronous player parsing retains its existing world generation guard. Entity-model requests also carry a cache generation so callbacks from a departed session cannot populate the next world's cache. Server stop events remove the integrated world's store and voice-rate state from the server maps. The selected local model/cache remains available for menus.
 
@@ -156,7 +186,7 @@ The default channel is `alpha` for both workflows. GitHub maps alpha/beta to pre
 
 The observed [manual build run 41423139303](https://github.com/aksulightning/FBXPlayerModels/actions/runs/41423139303) was dispatched on `main` but skipped because its prepare job required `modrinth-last-update`. That hard-coded branch condition has been removed. Every job now checks out the exact `${{ github.sha }}` selected by Run workflow, and artifact creation/verification receives `${{ github.ref_name }}` explicitly as `BUILD_SOURCE_BRANCH`. The workflows support `main` and other selected source branches without silently skipping them.
 
-`.github/workflows/nightly.yml` retains the **Manual release build** entrypoint for building artifacts without publishing and adds `workflow_call` so both release workflows reuse that implementation from the same source commit. There is no push or scheduled trigger. All selectors also include `fabric-1.21.1-client`, for five targets total. Target metadata remains centralized in `.github/scripts/release_metadata.py`. Explicit target tasks isolate the selected loader/toolchain configurations; Beta uses a Java 17 compiler and Java 21 Gradle runtime, Forge and both Fabric 1.21.1 variants use Java 21, and Fabric 26.2 uses Java 25. Beta, Forge, and Fabric 1.21.1 Client Only run their configured test tasks alongside production packaging.
+`.github/workflows/nightly.yml` retains the **Manual release build** entrypoint for building artifacts without publishing and adds `workflow_call` so release workflows reuse that implementation from the same source commit. There is no push or scheduled trigger. All active selectors include both client-only Fabric variants and the full `fabric-26.3`, for seven targets total. Target metadata remains centralized in `.github/scripts/release_metadata.py`. Explicit target tasks isolate the selected loader/toolchain configurations; Beta uses a Java 17 compiler and Java 21 Gradle runtime, Forge and both Fabric 1.21.1 variants use Java 21, and Fabric 26.2 and both 26.3 variants use Java 25. Beta, Forge, both client-only Fabric variants, and full Fabric 26.3 run their configured test tasks alongside production packaging.
 
 Both release workflows wait for all selected builds/tests to succeed before publishing. Each build uploads its production jar and `release-manifest.json` in artifact `fbx-player-models-<module>`. The manifest records repository, selected source branch/ref, commit, run ID, target, loader/game, mod version, filename, and SHA-256. Publication downloads artifacts from its own workflow run and validates every selected artifact before the first external write. No previous run ID or separate version input is needed.
 
@@ -237,8 +267,13 @@ root/
     build.gradle
     src/client/java/...
     src/main/resources/fabric.mod.json
+  fabric-26.3-client/
+    build.gradle
+    src/client/java/...
+    src/main/resources/fabric.mod.json
   release-notes/
     fabric-1.21.1-client.md
+    fabric-26.3-client.md
   fabric-1.21.1/
     build.gradle
     src/main/java/...
@@ -247,6 +282,13 @@ root/
     src/main/resources/fbx-player-models.mixins.json
     src/client/resources/fbx-player-models.client.mixins.json
   fabric-26.2/
+    build.gradle
+    src/main/java/...
+    src/client/java/...
+    src/main/resources/fabric.mod.json
+    src/main/resources/fbx-player-models.mixins.json
+    src/client/resources/fbx-player-models.client.mixins.json
+  fabric-26.3/
     build.gradle
     src/main/java/...
     src/client/java/...
@@ -514,6 +556,37 @@ The manual release workflow packages 26.2 with Java 25 as its own matrix target 
 
 The 26.2 development launch uses DevAuth `1.2.2`; unlike 1.2.1, it does not depend on the Apache HttpClient classes removed from the game runtime. DevAuth is `runtimeOnly` and is not bundled into the production mod jar.
 
+## Minecraft 26.3 port (2026-11-06)
+
+`fabric-26.3` is a separate full-mod target based on `fabric-26.2`. Its own main/client source sets, resources, entrypoints, and mixins retain model import and previews, rig binding and animations, Default shape keys, Voice Shape, first-person rendering and camera offsets, all five FBX entities, saved configuration, and integrated single-player/Open to LAN sharing. Version-independent models, appearance settings, audio processing, and session policy continue to come from `common`.
+
+Dependency versions were read from [Fabric's Loader metadata](https://meta.fabricmc.net/v2/versions/loader/26.3), [Loom metadata](https://maven.fabricmc.net/net/fabricmc/fabric-loom/maven-metadata.xml), [Fabric API metadata](https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/maven-metadata.xml), and [Mod Menu's 26.3 releases](https://api.modrinth.com/v2/project/modmenu/version?game_versions=%5B%2226.3%22%5D). [Mojang's 26.3 runtime metadata](https://piston-meta.mojang.com/v1/packages/80608ff6753705b6a82e2cb86a5937d4d233abd4/26.3.json) specifies Java 25 and LWJGL 3.4.3; the bundled Assimp/NFD dependencies use that LWJGL version. Gradle was updated to 9.6.0, following [Fabric's 26.3 porting notes](https://fabricmc.net/2026/09/15/263.html). Metadata requires Minecraft `~26.3`, Fabric Loader `>=0.20.1`, Java `>=25`, and Fabric API. Mod Menu 21.0.0 remains optional at runtime.
+
+The target handles these game API differences:
+
+- `FirstPersonHandsAndItemsRenderer` replaces `ItemInHandRenderer`. Its required mixin targets the complete `submitHandsWithItems(float, PoseStack, SubmitNodeCollector, PlayerRenderState, FirstPersonHandsAndItemsRenderState)` descriptor. Hand suppression checks that the render state has a player and that the local player's custom first-person model is available.
+- Quaternion rotations use `PoseStack.rotateDegrees(Axis, float)` in the player, first-person, and FBX entity renderers.
+- Player action poses use `getSwingAnimation`, `isSwinging`, and `getCurrentSwing().hand()`, including a main-hand fallback when no current swing exists.
+- SDL changes the left mouse button value from 0 to 1. The config preview, rig editor, shape editor, voice editor, and disclaimer checkbox use `InputConstants.MOUSE_BUTTON_LEFT`. The searchable target picker uses vanilla `EditBox` focus/input handling.
+
+Camera, title-screen, living-entity, and first-person injection targets were inspected against the actual 26.3 client classes. Geometry and textures continue through Minecraft's submission and texture APIs, without direct OpenGL or GLFW calls. The final render-state pose overrides used by inventory previews and the existing session policy are retained.
+
+`settings.gradle` recognizes explicit 26.3 task paths. Manual build, GitHub release, and CurseForge release selectors include `fabric-26.3`; centralized release metadata also includes it in `all`, with Java 25, `:fabric-26.3:jar`, and a distinct `fbx-player-models-fabric-26.3` artifact. The existing release-selection test expectation includes the new target. No workflows or publication actions were run.
+
+Initial validation: the prescribed four Fabric 1.21.1/26.2 compilation tasks plus the user-authorized `:fabric-26.3:compileJava :fabric-26.3:compileClientJava` passed under JDK 26 with release levels 21/25. An initial compile identified the removed hand renderer, swing members, and quaternion `mulPose` overloads; the target now uses their 26.3 APIs. The inherited deprecated API notice in `FBXPlayerModelsClient` remains. No other tests, formatters, packaging tasks, or game launches were run during that initial validation. In-game previews/input, first-person visibility, LAN transfers, audio deformation, and OpenGL/Vulkan rendering still need gameplay verification; no production jar was built during this port.
+
+Follow-up test validation (2026-11-06): the user explicitly approved running tests. All six Fabric compilation tasks passed again, with their outputs up to date. `JAVA_HOME=/usr/lib/jvm/temurin-26-jdk-amd64 bash ./gradlew :fabric-26.3:test :common:test` passed: `LocalModelFeaturesTest` ran 8 tests and `LanAddressPolicyTest` ran 8 tests, with no failures, errors, or skips. The 26.3 module's own test task reported `NO-SOURCE`; it has no separate unit tests. `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s .github/scripts/tests -p 'test_release_*.py' -v` passed all 20 release metadata/publication tests, including selection of 26.3 through `all`. Publication calls in those tests are mocked. No game launch, production packaging, or actual publication was performed.
+
+## Minecraft 26.3 command-tree join crash (2026-11-06)
+
+Minecraft 26.3's `Commands.COMMAND_NODE_INSPECTOR` evaluates each command requirement with `Commands.createCompilationContext(PermissionSet.NO_PERMISSIONS)` when creating the joining player's command packet. This source deliberately has no server or world. The port's `hasAdministratorRights` predicate dereferenced `source.getServer()`, throwing a null-pointer exception during player placement even in an integrated world.
+
+The 26.3 upload-permission command now uses the native `Commands.hasPermission(new PermissionCheck.Require(Permissions.COMMANDS_GAMEMASTER))` predicate, which reads permissions without accessing a server. Command registration skips the dedicated-server environment, and command execution separately requires a non-null integrated server before accessing the model store. This preserves operator-level command access and the single-player/Open to LAN scope while allowing Minecraft to inspect the command tree safely. The package-private `registerCommands` method lets the tests exercise the actual command registration independently of networking initialization.
+
+`fabric-26.3/src/test/java/me/onethecrazy/server/ServerModelNetworkingTest.java` adds two JUnit 4 regression tests. The first bootstraps Minecraft headlessly, checks unprivileged and administrator compilation sources, invokes the game's actual command-node inspector, and constructs a `ClientboundCommandsPacket` from the registered tree. The second verifies that the upload-permission command is absent in the dedicated environment. JUnit is a test-only dependency; the manual release build now runs `:fabric-26.3:test` alongside packaging.
+
+Validation: all six previously approved Fabric compilation tasks and `:fabric-26.3:test` passed together under JDK 26. Both new regression tests passed with no failures, errors, or skips. The earlier `NO-SOURCE` result above predates these tests. No in-game world join, production packaging, or publication was performed for this fix.
+
 ## Adding another Fabric Minecraft version
 
 1. Confirm the actual Minecraft version, mapping model, Fabric Loader version, Fabric API version, Loom version, Java version, and Mod Menu version from official metadata.
@@ -521,7 +594,7 @@ The 26.2 development launch uses DevAuth `1.2.2`; unlike 1.2.1, it does not depe
 3. Add `include("fabric-<minecraft-version>")` to `settings.gradle`.
 4. Create `fabric-<minecraft-version>/build.gradle` from the closest compatible target.
 5. Copy only the necessary Fabric glue, resources, entrypoints, and mixins into the new module.
-6. Add Yarn only for an obfuscated target; Minecraft 26.2 uses the unobfuscated names supplied by the game.
+6. Add Yarn only for an obfuscated target; Minecraft 26.2 and 26.3 use the unobfuscated names supplied by the game.
 7. Adapt dependencies, `fabric.mod.json`, mixin targets, injection descriptors, GUI, networking, persistence, entity, and rendering APIs for that Minecraft version.
 8. Audit the new rendering path for backend-specific graphics calls.
 9. Keep shared logic in `common`; isolate mapping-sensitive differences inside the Fabric target module.
