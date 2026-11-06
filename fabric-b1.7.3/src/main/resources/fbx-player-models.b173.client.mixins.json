@@ -11,7 +11,8 @@
     "MinecraftMixin",
     "PlayerRenderMixin",
     "WorldRendererMixin",
-    "ClientNetworkHandlerAccessor"
+    "ClientNetworkHandlerAccessor",
+    "TessellatorAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

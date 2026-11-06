@@ -1,6 +1,7 @@
 package me.onethecrazy.util.render;
 
 import me.onethecrazy.FBXPlayerModelsClient;
+import me.onethecrazy.mixin.client.TessellatorAccessor;
 import me.onethecrazy.util.objects.Vertex;
 import net.minecraft.client.render.Tessellator;
 import org.lwjgl.opengl.GL11;
@@ -32,6 +33,7 @@ public final class LegacyModelRenderer {
             GL11.glEnable(GL11.GL_BLEND);
             GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
             GL11.glEnable(GL11.GL_NORMALIZE);
+            GL11.glShadeModel(GL11.GL_SMOOTH);
             GL11.glDisable(GL11.GL_CULL_FACE);
 
             int offset = 0;
@@ -66,6 +68,10 @@ public final class LegacyModelRenderer {
                     color >>> 24 & 255
             );
             tessellator.normal(vertex.normals.x, vertex.normals.y, vertex.normals.z);
+            // Beta's normal() sign-extends packed bytes and wraps +X at 128.
+            // Keep its hooks, then supply the correct signed-byte attributes.
+            ((TessellatorAccessor) tessellator).fbx_player_models$setPackedNormal(
+                    packNormal(vertex.normals.x, vertex.normals.y, vertex.normals.z));
             tessellator.vertex(
                     vertex.position.x,
                     vertex.position.y,
@@ -75,5 +81,13 @@ public final class LegacyModelRenderer {
             );
         }
         tessellator.draw();
+    }
+
+    public static int packNormal(float x, float y, float z) {
+        return normalComponent(x) | normalComponent(y) << 8 | normalComponent(z) << 16;
+    }
+
+    private static int normalComponent(float component) {
+        return Math.round(Math.max(-1f, Math.min(1f, component)) * 127f) & 0xFF;
     }
 }

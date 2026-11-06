@@ -44,6 +44,9 @@ dependencies {
 
 tasks.named('test') {
 	dependsOn(':client-common:test')
+	def modelFixture = rootProject.file(providers.environmentVariable('FBX_TEST_MODEL').getOrElse('.temp/a model.fbx'))
+	inputs.files(modelFixture).withPropertyName('modelFixture')
+	systemProperty 'fbx.modelFixture', modelFixture.absolutePath
 }
 
 configurations.all {

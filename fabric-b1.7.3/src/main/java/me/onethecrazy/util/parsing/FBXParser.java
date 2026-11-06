@@ -957,7 +957,7 @@ public class FBXParser implements IParser {
         final List<Float> weights = new ArrayList<>();
 
         void add(int boneId, float weight) {
-            if (weight <= 0f) {
+            if (!Float.isFinite(weight) || weight <= 0f) {
                 return;
             }
 
@@ -966,7 +966,8 @@ public class FBXParser implements IParser {
         }
 
         int[] boneIds() {
-            int count = Math.min(4, boneIds.size());
+            // Skinning runs on the CPU, so retain every authored influence.
+            int count = boneIds.size();
             int[] result = new int[count];
             for (int i = 0; i < count; i++) {
                 result[i] = boneIds.get(i);
@@ -975,7 +976,7 @@ public class FBXParser implements IParser {
         }
 
         float[] weights() {
-            int count = Math.min(4, weights.size());
+            int count = weights.size();
             float[] result = new float[count];
             float total = 0f;
 

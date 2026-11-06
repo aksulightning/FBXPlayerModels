@@ -84,11 +84,8 @@ public final class BetaPlayerPoseAdapter {
                 player.lastWalkAnimationSpeed,
                 player.walkAnimationSpeed
         );
-        if (amplitude <= 0.01f) {
-            progress = (player.age + tickDelta) * 0.9f;
-            amplitude = sneaking ? 0.45f : 1f;
-        }
 
+        // Zero native amplitude means the player is still, including while sneaking.
         float armAmplitude = amplitude;
         float legAmplitude = 1.4f * amplitude;
         float sneakArmPitch = sneaking ? 0.4f : 0f;
