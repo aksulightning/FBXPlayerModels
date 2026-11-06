@@ -32,7 +32,7 @@ class DuplicatePublicationTest(unittest.TestCase):
 
     def test_conflicting_channel_loader_or_game_stops_publication(self):
         for changes in [{'version_type': 'release'}, {'loaders': ['fabric']},
-                        {'game_versions': ['26.2']}, {'status': 'draft'}]:
+                        {'game_versions': ['26.3']}, {'status': 'draft'}]:
             with self.assertRaises(RuntimeError):
                 already_published(self.row, [dict(self.version, **changes)], 'same-file', 'alpha')
 
@@ -47,7 +47,7 @@ class DuplicatePublicationTest(unittest.TestCase):
 
 class ReleaseSelectionTest(unittest.TestCase):
     def test_all_selects_each_supported_port(self):
-        self.assertEqual({'fabric-1.21.1', 'fabric-1.21.1-client', 'fabric-26.2', 'forge-1.21.1', 'fabric-b1.7.3'},
+        self.assertEqual({'fabric-1.21.1', 'fabric-1.21.1-client', 'fabric-26.3', 'fabric-26.3-client', 'forge-1.21.1', 'fabric-b1.7.3'},
                          set(selected_targets('all')))
 
     def test_single_target_stays_single(self):
@@ -100,16 +100,18 @@ class GitHubPublicationTest(unittest.TestCase):
         release_publish.github_release('all', 'release')
         self.assertNotIn('--prerelease', self.run.call_args.args[0])
 
-    def test_client_fabric_release_includes_the_modpack_note(self):
-        target = 'fabric-1.21.1-client'
-        directory = self.root / '.release' / target
-        directory.mkdir()
-        (directory / 'release-manifest.json').write_text(json.dumps({'sha256': 'client-hash'}))
-        self.rows.append({'target': target, 'filename': 'client.jar', 'file': f'.release/{target}/client.jar'})
+    def test_client_fabric_releases_include_their_target_notes(self):
+        for minecraft in ['1.21.1', '26.3']:
+            target = f'fabric-{minecraft}-client'
+            directory = self.root / '.release' / target
+            directory.mkdir()
+            (directory / 'release-manifest.json').write_text(json.dumps({'sha256': 'client-hash'}))
+            self.rows.append({'target': target, 'filename': f'client-{minecraft}.jar', 'file': f'.release/{target}/client-{minecraft}.jar'})
         release_publish.github_release('all', 'alpha')
         notes = (self.root / '.release/release-notes.md').read_text()
         self.assertIn("future-proofing [Aksu's Peaceful Gameplay Pack]", notes)
         self.assertIn('https://modrinth.com/modpack/aksus-peaceful-gameplay-pack', notes)
+        self.assertIn('Fabric 26.3 — Client Only', notes)
 
 
 if __name__ == '__main__':

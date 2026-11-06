@@ -11,7 +11,6 @@ on:
           - all
           - fabric-1.21.1
           - fabric-1.21.1-client
-          - fabric-26.2
           - forge-1.21.1
           - fabric-b1.7.3
       channel:

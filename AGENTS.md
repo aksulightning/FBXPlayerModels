@@ -15,7 +15,7 @@ When working in the allowed codespace, agents should:
 - Keep changes focused and avoid touching unrelated code.
 - Prefer durable, maintainable implementations over temporary fixes.
 - The modloader is Fabric.
-- Working on versions: 1.21.1, 26.2.
+- Working on versions: 1.21.1, 26.3 (full and client-only Fabric variants).
 
 ## Avoid
 
@@ -33,7 +33,7 @@ For every coding task:
 
 1. Use codebase com.aksulightning.fbxplayermodels.
 2. Create, make changes, remove the code.
-3. Test only with: bash ./gradlew :fabric-1.21.1:compileJava :fabric-1.21.1:compileClientJava :fabric-26.2:compileJava :fabric-26.2:compileClientJava
+3. Test only with: bash ./gradlew :fabric-1.21.1:compileJava :fabric-1.21.1:compileClientJava :fabric-26.3:compileJava :fabric-26.3:compileClientJava :fabric-1.21.1-client:compileJava :fabric-1.21.1-client:compileClientJava :fabric-26.3-client:compileJava :fabric-26.3-client:compileClientJava
 4. Document the changes made to the Code_Guide.md file.
 
 Do not run unrelated checks, test suites, formatters, or build tasks unless explicitly asked.

@@ -76,28 +76,42 @@ class ArtifactVerificationTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             release_metadata.verify_bundle('forge-1.21.1')
 
-    def test_client_fabric_has_distinct_filename_version_and_modpack_changelog(self):
+    def test_client_fabric_has_distinct_filename_version_and_changelog(self):
         root = release_metadata.ROOT
         with (root / 'gradle.properties').open('a') as stream:
-            stream.write('fabric_1211_mod_version=2.0.0+1.21.1\nfabric_1211_client_mod_version=2.0.0+1.21.1\n')
+            stream.write(
+                'fabric_1211_mod_version=2.0.0+1.21.1\nfabric_1211_client_mod_version=2.0.0+1.21.1\n'
+                'fabric_263_mod_version=2.0.0+26.3\nfabric_263_client_mod_version=2.0.0+26.3\n')
         (root / 'release-notes').mkdir()
-        (root / 'release-notes/fabric-1.21.1-client.md').write_text(CLIENT_NOTE)
-        target = 'fabric-1.21.1-client'
-        expected = release_metadata.metadata(target)
-        bundle = root / '.release' / target
-        bundle.mkdir()
-        jar = bundle / expected['filename']
-        jar.write_bytes(b'client-only artifact')
-        manifest = dict(self.manifest, **expected)
-        manifest['sha256'] = hashlib.sha256(jar.read_bytes()).hexdigest()
-        (bundle / 'release-manifest.json').write_text(json.dumps(manifest))
-        verified = release_metadata.verify_bundle(target)
-        self.assertEqual('fbx-player-models-client-v2.0.0+1.21.1+mc1.21.1.jar', expected['filename'])
-        self.assertNotEqual(release_metadata.metadata('fabric-1.21.1')['filename'], expected['filename'])
-        self.assertEqual('2.0.0+fabric-client.1.21.1', verified['version'])
-        self.assertLessEqual(len(verified['version']), 32)
-        self.assertIn("future-proofing [Aksu's Peaceful Gameplay Pack]", verified['changelog'])
-        self.assertIn('https://modrinth.com/modpack/aksus-peaceful-gameplay-pack', verified['changelog'])
+        notes = {
+            'fabric-1.21.1-client': CLIENT_NOTE,
+            'fabric-26.3-client': 'Fabric 26.3 — Client Only: local model settings.',
+        }
+        for minecraft in ['1.21.1', '26.3']:
+            target = f'fabric-{minecraft}-client'
+            with self.subTest(target=target):
+                (root / f'release-notes/{target}.md').write_text(notes[target])
+                expected = release_metadata.metadata(target)
+                bundle = root / '.release' / target
+                bundle.mkdir()
+                jar = bundle / expected['filename']
+                jar.write_bytes(b'client-only artifact')
+                manifest = dict(self.manifest, **expected)
+                manifest['sha256'] = hashlib.sha256(jar.read_bytes()).hexdigest()
+                (bundle / 'release-manifest.json').write_text(json.dumps(manifest))
+                verified = release_metadata.verify_bundle(target)
+                self.assertEqual(f'fbx-player-models-client-v2.0.0+{minecraft}+mc{minecraft}.jar', expected['filename'])
+                self.assertNotEqual(release_metadata.metadata(f'fabric-{minecraft}')['filename'], expected['filename'])
+                self.assertEqual(f'2.0.0+fabric-client.{minecraft}', verified['version'])
+                self.assertLessEqual(len(verified['version']), 32)
+                self.assertEqual(f':{target}:' + ('jar' if minecraft == '26.3' else 'remapJar'), expected['task'])
+                self.assertIn(notes[target].strip(), verified['changelog'])
+                self.assertIn('Alpha release', verified['changelog'])
+                if minecraft == '26.3':
+                    self.assertNotIn("Aksu's Peaceful Gameplay Pack", verified['changelog'])
+                else:
+                    self.assertIn("future-proofing [Aksu's Peaceful Gameplay Pack]", verified['changelog'])
+                    self.assertIn('https://modrinth.com/modpack/aksus-peaceful-gameplay-pack', verified['changelog'])
 
     def test_multiline_changelog_uses_github_output_delimiter(self):
         destination = Path(self.temp.name) / 'github-output'

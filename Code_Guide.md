@@ -2,17 +2,17 @@
 
 ## Release variants and loader support
 
-This release maintains the full mod on Fabric 1.21.1 and 26.2 and adds client-only Fabric 1.21.1, Forge 1.21.1, and Babric/StationAPI Beta 1.7.3 variants. Each target produces a separate jar; there is no universal jar. NeoForge, Quilt, and Architectury are not used.
+This release maintains the full mod on Fabric 1.21.1 and 26.3 and adds client-only Fabric 1.21.1, Fabric 26.3, Forge 1.21.1, and Babric/StationAPI Beta 1.7.3 variants. Each target produces a separate jar; there is no universal jar. NeoForge, Quilt, and Architectury are not used.
 
-The full Fabric variants support single-player and Open to LAN model sharing. Fabric 1.21.1 Client Only, Forge, and Beta retain local-player rendering only and register no model-sharing packets, server stores, or FBX entities. The imported ports retain their existing configuration formats, paths, and mod identifiers; their display names describe the client-only variant.
+The full Fabric variants support single-player and Open to LAN model sharing. Fabric 1.21.1 Client Only, Fabric 26.3 Client Only, Forge, and Beta retain local-player rendering only and register no model-sharing packets, server stores, or FBX entities. The client-only ports retain their configuration formats, paths, and mod identifiers; their display names describe the client-only variant.
 
-`common` serves the full modern Fabric mod, Fabric 1.21.1 Client Only, and Forge, including their shared Java 21 shape/voice/model/config code. Forge compiles the common sources directly into its own source set to avoid split Java packages. `client-common` retains the separate Java 17 Lite model/config/platform code for Beta, which includes its compiled output. No jar includes both common variants, avoiding duplicate model/config classes.
+`common` serves the full modern Fabric mod, both client-only Fabric variants, and Forge, including their shared Java 21 shape/voice/model/config code. Forge compiles the common sources directly into its own source set to avoid split Java packages. `client-common` retains the separate Java 17 Lite model/config/platform code for Beta, which includes its compiled output. No jar includes both common variants, avoiding duplicate model/config classes.
 
 `session-policy/src/main/java` is a small shared source directory, compiled into `common`, `client-common`, and Forge. It has no Minecraft, loader, or rendering dependencies.
 
 ## Supported targets
 
-The repository maintains two full-mod Fabric targets, plus the three client-only ports described below. Each loader module has its own version-sensitive source, resources, metadata, and production jar. Full Fabric, Fabric 1.21.1 Client Only, and Forge use `common`; Beta uses `client-common`. Neither shared module is a standalone Minecraft distribution.
+The repository maintains two full-mod Fabric targets, plus the four client-only ports described below. Each loader module has its own version-sensitive source, resources, metadata, and production jar. Full Fabric, both client-only Fabric variants, and Forge use `common`; Beta uses `client-common`. Neither shared module is a standalone Minecraft distribution.
 
 ### Target and toolchain versions
 
@@ -20,7 +20,8 @@ The repository maintains two full-mod Fabric targets, plus the three client-only
 | --- | --- | --- | --- | --- | --- | --- |
 | `fabric-1.21.1` | `1.21.1` | Yarn `1.21.1+build.3` | 21 | `1.16.2` | `0.16.14` | `0.116.6+1.21.1` |
 | `fabric-1.21.1-client` | `1.21.1` | Yarn `1.21.1+build.3` | 21 | `1.16.2` | `0.16.14` | `0.116.6+1.21.1` |
-| `fabric-26.2` | `26.2` | unobfuscated game names; no Yarn | 25 | `1.17.17` | `0.19.3` | `0.156.0+26.2` |
+| `fabric-26.3` | `26.3` | unobfuscated game names; no Yarn | 25 | `1.17.21` | `0.20.1` | `0.165.2+26.3` |
+| `fabric-26.3-client` | `26.3` | unobfuscated game names; no Yarn | 25 | `1.17.21` | `0.20.1` | `0.165.2+26.3` |
 
 ### Mod and production-build versions
 
@@ -28,23 +29,22 @@ The repository maintains two full-mod Fabric targets, plus the three client-only
 | --- | --- | --- | --- | --- | --- |
 | `fabric-1.21.1` | `2.0.0+1.21.1` | `11.0.3` | `3.3.3` | `:fabric-1.21.1:remapJar` | `fbx-player-models-v2.0.0+1.21.1+mc1.21.1.jar` |
 | `fabric-1.21.1-client` | `2.0.0+1.21.1` | `11.0.3` | `3.3.3` | `:fabric-1.21.1-client:remapJar` | `fbx-player-models-client-v2.0.0+1.21.1+mc1.21.1.jar` |
-| `fabric-26.2` | `2.0.0+26.2` | `20.0.1` | `3.4.1` | `:fabric-26.2:jar` | `fbx-player-models-v2.0.0+26.2+mc26.2.jar` |
+| `fabric-26.3` | `2.0.0+26.3` | `21.0.0` | `3.4.3` | `:fabric-26.3:jar` | `fbx-player-models-v2.0.0+26.3+mc26.3.jar` |
+| `fabric-26.3-client` | `2.0.0+26.3` | `21.0.0` | `3.4.3` | `:fabric-26.3-client:jar` | `fbx-player-models-client-v2.0.0+26.3+mc26.3.jar` |
 
-`fabric-1.21.1` uses Yarn and produces its production artifact through Loom's `remapJar` task. Minecraft 26.2 exposes unobfuscated game names, so that module deliberately omits Yarn and produces its production artifact through `jar`.
+`fabric-1.21.1` uses Yarn and produces its production artifact through Loom's `remapJar` task. Both Minecraft 26.3 variants expose unobfuscated game names, so those modules deliberately omit Yarn and produce their production artifacts through `jar`.
 
-Production jars are written to `<module>/build/libs/`. Modern Fabric jars include the `common` output and bundle jgltf `2.0.4`, Native File Dialog, and Assimp natives for Windows, Linux, and macOS on x64 and arm64. The Gradle wrapper is `9.5.1`. DevAuth is development-only: Fabric 1.21.1 uses `1.2.1`, while Fabric 26.2 uses `1.2.2`. The imported ports have separate dependencies and toolchains described below.
+Production jars are written to `<module>/build/libs/`. Modern Fabric jars include the `common` output and bundle jgltf `2.0.4`, Native File Dialog, and Assimp natives for Windows, Linux, and macOS on x64 and arm64. The Gradle wrapper is `9.6.0`. DevAuth is development-only: Fabric 1.21.1 uses `1.2.1`, while both Fabric 26.3 variants use `1.2.2`. The imported ports have separate dependencies and toolchains described below.
 
 ## Manual build commands
 
-Build and publication are user-triggered. The initial release implementation did not run Gradle. On 2026-11-02, the user subsequently authorized validation; the prescribed four modern Fabric compilation tasks passed after correcting the 26.2 inactive-session notice to use `LocalPlayer.sendSystemMessage`. Older validation entries below describe earlier work.
-
-The prescribed modern Fabric compilation command remains:
+Build and publication are user-triggered. After retiring Fabric 26.2, the prescribed compilation command covers the full and client-only variants for Minecraft 1.21.1 and 26.3:
 
 ```bash
-bash ./gradlew :fabric-1.21.1:compileJava :fabric-1.21.1:compileClientJava :fabric-26.2:compileJava :fabric-26.2:compileClientJava
+bash ./gradlew :fabric-1.21.1:compileJava :fabric-1.21.1:compileClientJava :fabric-26.3:compileJava :fabric-26.3:compileClientJava :fabric-1.21.1-client:compileJava :fabric-1.21.1-client:compileClientJava :fabric-26.3-client:compileJava :fabric-26.3-client:compileClientJava
 ```
 
-Use Java 25 or newer to launch the combined modern compilation. The supported source release levels remain Java 21 for 1.21.1 and Java 25 for 26.2.
+Use Java 25 or newer to launch the combined compilation. Source release levels remain Java 21 for 1.21.1 and Java 25 for 26.3. Dated validation entries below preserve earlier results; references to 26.2 in those entries are historical and their old commands no longer apply to the active build.
 
 Production packaging commands for the user to trigger individually:
 
@@ -52,7 +52,8 @@ Production packaging commands for the user to trigger individually:
 | --- | --- | --- | --- |
 | Fabric 1.21.1 | Java 21+ / release 21 | `bash ./gradlew :fabric-1.21.1:remapJar` | `fbx-player-models-v2.0.0+1.21.1+mc1.21.1.jar` |
 | Fabric 1.21.1 Client Only | Java 21+ / release 21 | `bash ./gradlew :fabric-1.21.1-client:remapJar` | `fbx-player-models-client-v2.0.0+1.21.1+mc1.21.1.jar` |
-| Fabric 26.2 | Java 25+ / release 25 | `bash ./gradlew :fabric-26.2:jar` | `fbx-player-models-v2.0.0+26.2+mc26.2.jar` |
+| Fabric 26.3 | Java 25+ / release 25 | `bash ./gradlew :fabric-26.3:jar` | `fbx-player-models-v2.0.0+26.3+mc26.3.jar` |
+| Fabric 26.3 Client Only | Java 25+ / release 25 | `bash ./gradlew :fabric-26.3-client:jar` | `fbx-player-models-client-v2.0.0+26.3+mc26.3.jar` |
 | Forge 1.21.1 | Java 21+ / Java 21 toolchain | `bash ./gradlew :forge-1.21.1:jarJar` | `fbx-player-models-forge-v2.0.0+1.21.1+mc1.21.1.jar` |
 | Babric Beta 1.7.3 | Java 21+ / Java 17 toolchain | `bash ./gradlew :fabric-b1.7.3:remapJar` | `fbx-player-models-v2.0.0+b1.7.3+mcb1.7.3.jar` |
 
@@ -92,6 +93,24 @@ The client target's `test` task now depends on `common:test`, which covers the s
 The requested release note remains at `release-notes/fabric-1.21.1-client.md`, including the purpose of future-proofing [Aksu's Peaceful Gameplay Pack](https://modrinth.com/modpack/aksus-peaceful-gameplay-pack). Both release destinations append it automatically for this target, retaining custom notes. It now describes the added local shape/voice/import features. The full and client-only Fabric jars share the `fbx-player-models` mod ID; install only one per game instance. Their filenames and Modrinth versions remain distinct: `fbx-player-models-client-v2.0.0+1.21.1+mc1.21.1.jar` and `2.0.0+fabric-client.1.21.1` for the client-only variant.
 
 Validation for this feature addition includes the four prescribed full Fabric compile tasks plus `:fabric-1.21.1-client:compileJava`, `:fabric-1.21.1-client:compileClientJava`, and `:fabric-1.21.1-client:test`, using JDK 26 and the existing Gradle cache. The first run found a missing `FileUtil` import in the adapted local settings screen; adding it resolved the error, and the same command passed. `compileJava` has no sources for this client-only module; `compileClientJava` successfully compiles the shared feature sources and local adapters. The shared `common:test` suite passed 16 tests (eight local model feature contracts plus eight LAN address-policy cases), and all 20 release-helper tests also passed. Inspection of the compiled client output confirmed the new editors/importers/voice adapter and no FBX protocol/server classes. No microphone or OpenGL display was opened by those tests. Production jar packaging, in-game UI/deformation/audio, and modpack behavior have not been exercised; no release was dispatched or published.
+
+## Fabric 26.3 client-only variant (2026-11-06)
+
+`fabric-26.3-client` ports the local-player behavior of `fabric-1.21.1-client` onto the existing full 26.3 renderer and game APIs. Its metadata declares environment `client`, client/Mod Menu/optional voice-chat entrypoints, and only client mixins. `FBXPlayerModelsMod` is a client-side constants/logger holder, not a main/server initializer. The module registers `/skin` locally and no upload-permission command, model-sharing payload, server store, or FBX entity. Its main Java source set is empty.
+
+The module compiles a selected `localModelFeatures` set directly from `fabric-26.3/src/client/java`: importers, model/animation math, normalization, shape-aware geometry/cache classes, deferred `CustomSkinRenderData`, Shape Key Settings, Voice Shape Settings, and the searchable Voice Target picker. This shares the 26.3 UpAxis-aware importer, binary shape recovery, deformation, live limb/swing poses, and editor behavior. The Gradle project does not depend on the full Fabric module or include its main source set.
+
+The local `SkinManager` keeps one cache bound to the selected model hash, reads/writes the existing `.fbxplayermodels/.config` and `skins` paths, and reapplies saved rig bindings, clip mappings, Default shape profiles, and Voice Shape settings. Local adapters provide title/config/editor previews, first-person body/hidden-head rendering, camera offsets, animation controls, and microphone/optional Simple Voice Chat input. Selection/reset, disconnect, and shutdown stop local audio capture. The config screen contains Select, Reset, ON/OFF, Settings, and Done controls; uploads and sharing are outside this variant.
+
+The living-entity mixin clears custom data before each player extraction and populates it only for the current local player in an eligible connection. Remote players retain vanilla rendering. Its deferred submission consumes that prepared snapshot and honors final inventory pose overrides. Explicit previews construct their own selected-model snapshots, so they remain usable when world rendering is inactive. First-person hands use the complete 26.3 `FirstPersonHandsAndItemsRenderer` descriptor; body transforms use `PoseStack.rotateDegrees`; mouse controls use SDL-aware `InputConstants.MOUSE_BUTTON_LEFT`.
+
+The connection policy matches the 1.21.1 client-only variant: an in-memory connection requires an integrated server, while remote connections must resolve to an allowed local-network address. It exchanges no custom approval packets and requires no server-side installation. The address policy cannot distinguish a dedicated server or proxy behind a private address; it remains a support policy. Unsupported connections retain vanilla gameplay rendering and receive one local status notice per connection.
+
+Build dependencies reuse the full 26.3 properties: Minecraft 26.3, Java 25, Loom 1.17.21, Fabric Loader 0.20.1, Fabric API 0.165.2+26.3, Mod Menu 21.0.0, LWJGL Assimp/NFD 3.4.3, jgltf 2.0.4, and development-only DevAuth 1.2.2. The separate `fabric_263_client_mod_version` is `2.0.0+26.3`. The `jar` task packages common output with the client implementation as `fbx-player-models-client-v2.0.0+26.3+mc26.3.jar`. Full and client-only jars have the same Fabric mod ID and must be installed separately.
+
+Manual build, GitHub release, and CurseForge release selectors include this sixth target and select it through `all`. Central metadata gives both client-only Fabric versions the `-client` filename and `fabric-client` version suffix, keeping full/client artifacts distinct. The new Modrinth-style version is `2.0.0+fabric-client.26.3`. `release-notes/fabric-26.3-client.md` is appended for this target without applying the 1.21.1-only modpack note. Existing release tests cover both variants' filenames, packaging tasks, provenance verification, version labels, and appended notes.
+
+Initial client-only validation, before 26.2 retirement, used the existing test approval: the four then-prescribed Fabric 1.21.1/26.2 compile tasks, the full 26.3 compile tasks, both client-only Fabric compile task pairs, and `:fabric-26.3-client:test` passed together under JDK 26. The initial run found one remaining Yarn `world` field in the local connection-policy adapter; changing it to `level` fixed compilation. Both client-only `compileJava` tasks report `NO-SOURCE`; their `compileClientJava` tasks compile successfully. The new client's test task depends on the 16 shared `common:test` cases; those were already up to date with passing results. All 20 release-helper tests passed again with extended coverage for 26.3 Client Only. Inspection of the 84 compiled client classes found no mod server, protocol, remote-cache, or FBX entity classes. No production packaging, in-game rendering/input/audio, or release/publication was performed.
 
 ## Forge 1.21.1 local shape, voice and importer features
 
@@ -135,7 +154,7 @@ Modern Fabric adds a server-to-client `lan_session` payload containing protocol 
 
 Client `LanSession` binds approval to the receiving play handler. The local in-memory integrated connection is allowed directly; remote connections require both the resolved LAN peer address and the matching approval protocol. On the first ready client tick, the selected model is uploaded and visible remote players are looked up again, covering entities loaded before approval. Unknown, old, dedicated, and public servers leave FBX gameplay features inactive. Minecraft connections are not cancelled. A chat notice appears after 60 waiting ticks; configuration also displays the session status and disables LAN sharing when unavailable.
 
-The session gate covers ordinary player rendering, deferred 26.2 submissions, first-person body rendering, camera offsets, entity-model cache access, appearance synchronization, and world-driven microphone sampling. Explicit editor previews remain usable. The existing enabled preference is never rewritten to implement this restriction.
+The session gate covers ordinary player rendering, deferred 26.3 submissions, first-person body rendering, camera offsets, entity-model cache access, appearance synchronization, and world-driven microphone sampling. Explicit editor previews remain usable. The existing enabled preference is never rewritten to implement this restriction.
 
 INIT/disconnect resets clear approval, pending shape snapshots, lookup/model waiters, remote skin/settings state, remote voice envelopes, and entity-model caches. Queued responses retain their originating play handler; asynchronous player parsing retains its existing world generation guard. Entity-model requests also carry a cache generation so callbacks from a departed session cannot populate the next world's cache. Server stop events remove the integrated world's store and voice-rate state from the server maps. The selected local model/cache remains available for menus.
 
@@ -156,7 +175,7 @@ The default channel is `alpha` for both workflows. GitHub maps alpha/beta to pre
 
 The observed [manual build run 41423139303](https://github.com/aksulightning/FBXPlayerModels/actions/runs/41423139303) was dispatched on `main` but skipped because its prepare job required `modrinth-last-update`. That hard-coded branch condition has been removed. Every job now checks out the exact `${{ github.sha }}` selected by Run workflow, and artifact creation/verification receives `${{ github.ref_name }}` explicitly as `BUILD_SOURCE_BRANCH`. The workflows support `main` and other selected source branches without silently skipping them.
 
-`.github/workflows/nightly.yml` retains the **Manual release build** entrypoint for building artifacts without publishing and adds `workflow_call` so both release workflows reuse that implementation from the same source commit. There is no push or scheduled trigger. All selectors also include `fabric-1.21.1-client`, for five targets total. Target metadata remains centralized in `.github/scripts/release_metadata.py`. Explicit target tasks isolate the selected loader/toolchain configurations; Beta uses a Java 17 compiler and Java 21 Gradle runtime, Forge and both Fabric 1.21.1 variants use Java 21, and Fabric 26.2 uses Java 25. Beta, Forge, and Fabric 1.21.1 Client Only run their configured test tasks alongside production packaging.
+`.github/workflows/nightly.yml` retains the **Manual release build** entrypoint for building artifacts without publishing and adds `workflow_call` so release workflows reuse that implementation from the same source commit. There is no push or scheduled trigger. All active selectors include both client-only Fabric variants and the full `fabric-26.3`, for six targets total. Target metadata remains centralized in `.github/scripts/release_metadata.py`. Explicit target tasks isolate the selected loader/toolchain configurations; Beta uses a Java 17 compiler and Java 21 Gradle runtime, Forge and both Fabric 1.21.1 variants use Java 21, and both Fabric 26.3 variants use Java 25. Beta, Forge, both client-only Fabric variants, and full Fabric 26.3 run their configured test tasks alongside production packaging.
 
 Both release workflows wait for all selected builds/tests to succeed before publishing. Each build uploads its production jar and `release-manifest.json` in artifact `fbx-player-models-<module>`. The manifest records repository, selected source branch/ref, commit, run ID, target, loader/game, mod version, filename, and SHA-256. Publication downloads artifacts from its own workflow run and validates every selected artifact before the first external write. No previous run ID or separate version input is needed.
 
@@ -237,8 +256,13 @@ root/
     build.gradle
     src/client/java/...
     src/main/resources/fabric.mod.json
+  fabric-26.3-client/
+    build.gradle
+    src/client/java/...
+    src/main/resources/fabric.mod.json
   release-notes/
     fabric-1.21.1-client.md
+    fabric-26.3-client.md
   fabric-1.21.1/
     build.gradle
     src/main/java/...
@@ -246,7 +270,7 @@ root/
     src/main/resources/fabric.mod.json
     src/main/resources/fbx-player-models.mixins.json
     src/client/resources/fbx-player-models.client.mixins.json
-  fabric-26.2/
+  fabric-26.3/
     build.gradle
     src/main/java/...
     src/client/java/...
@@ -320,13 +344,13 @@ Shared code currently includes platform interfaces, constants, save/config model
 
 ## Player model display setting
 
-The client config screen exposes `FBX Models: ON/OFF`. It is enabled by default and saved immediately when changed. The shared `FBXPlayerModelsSave` constructor initializes `isEnabled` to `true` for both Fabric 1.21.1 and 26.2, including new saves and older saves without that field; an explicitly saved ON/OFF choice is preserved. `ON` renders available FBX models for player entities; `OFF` leaves player rendering to Minecraft so vanilla player skins are shown. The setting is client-local and covers both the local player and remote players, so it behaves the same in single-player and multiplayer.
+The client config screen exposes `FBX Models: ON/OFF`. It is enabled by default and saved immediately when changed. The shared `FBXPlayerModelsSave` constructor initializes `isEnabled` to `true` for both Fabric 1.21.1 and 26.3, including new saves and older saves without that field; an explicitly saved ON/OFF choice is preserved. `ON` renders available FBX models for player entities; `OFF` leaves player rendering to Minecraft so vanilla player skins are shown. The setting is client-local and covers both the local player and remote players, so it behaves the same in single-player and multiplayer.
 
 The setting deliberately gates only player rendering, the player preview, and FBX-specific first-person model/camera behavior. It must not gate the summonable FBX view entity or FBX mob renderers.
 
 ## Experimental default shape keys
 
-Fabric 1.21.1 and 26.2 expose **Settings → Shape Key Settings**, opening a dedicated `me.onethecrazy.screens.editor.ShapeKeySettingsScreen` for the selected player model. The general settings screen now contains only the navigation button for shape keys. Each supported FBX target has a slider from 0% to 100%, in 1% increments, with its imported name above the slider and its full name available as a tooltip. The only exposed profile is **Default**. **Reset Default** returns every target to 0%; models without supported targets show an empty-state message and disable reset.
+Fabric 1.21.1 and 26.3 expose **Settings → Shape Key Settings**, opening a dedicated `me.onethecrazy.screens.editor.ShapeKeySettingsScreen` for the selected player model. The general settings screen now contains only the navigation button for shape keys. Each supported FBX target has a slider from 0% to 100%, in 1% increments, with its imported name above the slider and its full name available as a tooltip. The only exposed profile is **Default**. **Reset Default** returns every target to 0%; models without supported targets show an empty-state message and disable reset.
 
 The dedicated screen shows the selected model filename, Default profile and target count, and a 3D preview of the base pose with the current shape weights. Left-drag inside the preview rotates it, with pitch clamped to ±90 degrees; scrolling inside the preview zooms from 0.25× to 3×. **Reset View** restores its initial rotation and zoom. **Back** and Escape return to the parent Settings screen, retaining immediately saved weights. Slider changes and Reset Default update the preview and matching local player cache without reparsing the FBX.
 
@@ -352,11 +376,11 @@ The importer expands targets using the same triangle indices and duplicated four
 
 Support includes position and available normal targets exposed by Assimp or connected binary FBX Shape records. Malformed native target vertex counts are skipped, with binary recovery attempted for meshes without usable native targets. Authored shape animation tracks, in-between channel evaluation, negative/overdriven weights, and additional profiles are outside the current default-pose experiment.
 
-Validation: `bash ./gradlew :fabric-1.21.1:compileJava :fabric-1.21.1:compileClientJava :fabric-26.2:compileJava :fabric-26.2:compileClientJava` passed all four tasks after the initial shape key implementation, the Blender detection correction, and the dedicated shape key settings screen, using the installed JDK 26 and the configured Java 21/25 release levels. Gradle required access to its existing cache outside the workspace sandbox. No other test suites or build tasks were run. The supplied Fluttershy FBX was inspected structurally and contains no shape key records; a re-export containing shape keys has not been supplied. In-game appearance, preview rotation/zoom, slider interaction, and imported shape deformation have not been visually verified in Minecraft.
+Historical validation: `bash ./gradlew :fabric-1.21.1:compileJava :fabric-1.21.1:compileClientJava :fabric-26.2:compileJava :fabric-26.2:compileClientJava` passed all four tasks after the initial shape key implementation, the Blender detection correction, and the dedicated shape key settings screen, using the installed JDK 26 and the configured Java 21/25 release levels. Gradle required access to its existing cache outside the workspace sandbox. No other test suites or build tasks were run. The supplied Fluttershy FBX was inspected structurally and contains no shape key records; a re-export containing shape keys has not been supplied. In-game appearance, preview rotation/zoom, slider interaction, and imported shape deformation have not been visually verified in Minecraft.
 
 ## Experimental Voice Shape
 
-Settings → Voice Shape Settings opens a dedicated editor on Fabric 1.21.1 and 26.2. Each selected model saves one `VoiceShapeSettings` mapping, separate from its Default shape profile. Existing saves initialize safely with target **None**. Choose **Bone** or **Shape key**, select an imported name in the searchable picker, and set the start/end values. Source IDs distinguish shape keys with identical names on different meshes. A bone uses XYZ rotation offsets in degrees, limited to ±180°; a shape key uses start/end weights in 0–100%. Reversed endpoints are supported. Selecting None disables audio input and leaves ordinary rendering intact.
+Settings → Voice Shape Settings opens a dedicated editor on Fabric 1.21.1 and 26.3. Each selected model saves one `VoiceShapeSettings` mapping, separate from its Default shape profile. Existing saves initialize safely with target **None**. Choose **Bone** or **Shape key**, select an imported name in the searchable picker, and set the start/end values. Source IDs distinguish shape keys with identical names on different meshes. A bone uses XYZ rotation offsets in degrees, limited to ±180°; a shape key uses start/end weights in 0–100%. Reversed endpoints are supported. Selecting None disables audio input and leaves ordinary rendering intact.
 
 The editor refreshes the saved Default shape profile when opened, including after changing it in the shape key menu, and shows the selected model in its default pose, with mouse drag rotation, wheel zoom, Reset View, Back/Escape, a response meter, live/manual preview selection, a manual percentage slider, and Test Pulse. Manual amount and Test Pulse affect only the editor preview. Controls scroll independently of the preview. The pane layout adapts to narrow windows, and the searchable picker scrolls long name lists. Settings save immediately without reparsing the model.
 
@@ -366,15 +390,15 @@ Without Simple Voice Chat, a daemon worker reads mono 48 kHz signed 16-bit PCM t
 
 `VoiceAudioEnvelope` computes RMS amplitude, configurable sensitivity and a noise threshold. **Volume** continuously interpolates between the endpoints; **Rhythm / onsets** detects sharp increases relative to the recent amplitude baseline; **Threshold trigger** fires when the threshold is crossed, with hysteresis before retriggering. Pulses last 200 ms. A 40 ms attack and 140 ms release smooth motion, and audio older than 250 ms returns toward the start endpoint. Rhythm is amplitude-onset detection, not music tempo tracking.
 
-`VoiceShapePose` is an immutable per-frame snapshot. Both player renderers apply local settings to the matching local session/model and server-synchronized settings to a matching remote model; either path requires that the imported target still exists. Bone rotation is additive about the current posed joint in model-space XYZ and propagates to descendants before skinning. It composes with clips, head look, and live limb poses. Shape motion replaces the selected key's Default weight for that frame, preserves other Default weights, and rebuilds from unchanged base geometry before skinning; a bounded cache reuses identical voice weights. Voice Shape remains independently enabled when ordinary clip/live-pose animations are disabled. None restores the applicable local or remote Default shape profile. The 26.2 render state carries the voice snapshot through deferred submission, and first-person rendering retains its existing hidden-head and visibility restrictions.
+`VoiceShapePose` is an immutable per-frame snapshot. Both player renderers apply local settings to the matching local session/model and server-synchronized settings to a matching remote model; either path requires that the imported target still exists. Bone rotation is additive about the current posed joint in model-space XYZ and propagates to descendants before skinning. It composes with clips, head look, and live limb poses. Shape motion replaces the selected key's Default weight for that frame, preserves other Default weights, and rebuilds from unchanged base geometry before skinning; a bounded cache reuses identical voice weights. Voice Shape remains independently enabled when ordinary clip/live-pose animations are disabled. None restores the applicable local or remote Default shape profile. The 26.3 render state carries the voice snapshot through deferred submission, and first-person rendering retains its existing hidden-head and visibility restrictions.
 
 This experiment supports one Default profile and one Voice Shape mapping per selected model for both the local player and remote players seen through a compatible server. Additional mappings/profiles and authored shape animation clips remain outside this implementation. The supplied `.temp/fluttershy_test.fbx` can supply bone targets but contains no exported shape key records.
 
-Validation uses only the four Java/client compilation tasks required by AGENTS.md. `bash ./gradlew :fabric-1.21.1:compileJava :fabric-1.21.1:compileClientJava :fabric-26.2:compileJava :fabric-26.2:compileClientJava` passed all four tasks with JDK 26 and the configured Java 21/25 release levels. Gradle used its existing cache outside the workspace sandbox; no other test suites or build tasks were run. Runtime microphone capture, optional-mod event delivery, and visual deformation have not been exercised in Minecraft in this workspace.
+Historical validation used the four Java/client compilation tasks then required by AGENTS.md. `bash ./gradlew :fabric-1.21.1:compileJava :fabric-1.21.1:compileClientJava :fabric-26.2:compileJava :fabric-26.2:compileClientJava` passed all four tasks with JDK 26 and the configured Java 21/25 release levels. Gradle used its existing cache outside the workspace sandbox; no other test suites or build tasks were run. Runtime microphone capture, optional-mod event delivery, and visual deformation have not been exercised in Minecraft in this workspace.
 
 ## Experimental server shape synchronization
 
-Fabric 1.21.1 and 26.2 synchronize the selected model's Default shape-key weights and complete `VoiceShapeSettings` snapshot through the mod server. The shared `ShapeKeySyncState` binds that appearance to the model SHA-256 hash, clamps values through the existing profile/voice rules, drops zero Default weights, and bounds target counts and strings before packet encoding or persistence. The client is authoritative for its own saved editor choices; the server derives the player UUID from the authenticated connection and accepts an update only when its model hash exactly matches that player's current server model. A model replacement starts with empty settings, and clearing the server model clears its synchronized settings.
+Fabric 1.21.1 and 26.3 synchronize the selected model's Default shape-key weights and complete `VoiceShapeSettings` snapshot through the mod server. The shared `ShapeKeySyncState` binds that appearance to the model SHA-256 hash, clamps values through the existing profile/voice rules, drops zero Default weights, and bounds target counts and strings before packet encoding or persistence. The client is authoritative for its own saved editor choices; the server derives the player UUID from the authenticated connection and accepts an update only when its model hash exactly matches that player's current server model. A model replacement starts with empty settings, and clearing the server model clears its synchronized settings.
 
 Selecting a model and the client-join auto-upload send model bytes before their settings update. Shape sliders and Voice Shape controls still save locally immediately; network settings snapshots are coalesced and flushed at most once per 200 ms while editing. The server persists accepted snapshots separately from model bytes at:
 
@@ -394,7 +418,7 @@ Bone is a first-class synchronized Voice Shape target, not a shape-key fallback.
 
 For a remote player, `VoiceShapeClient.poseFor()` verifies that the synchronized bone name exists in that player's parsed model, evaluates the six endpoints from the relayed scalar, and produces the same `VoiceShapePose` used locally. `SkinnedModel` adds the resulting model-space XYZ rotation around the selected joint's current posed position after clip, head-look, and live-limb evaluation. Recursive global-transform evaluation propagates it to descendants. Bone Voice Shape therefore remains visible to other tracking players and continues to work when ordinary animation playback is disabled, while a missing bone safely produces no voice pose.
 
-Validation for server shape synchronization uses only the required four compilation tasks. `bash ./gradlew :fabric-1.21.1:compileJava :fabric-1.21.1:compileClientJava :fabric-26.2:compileJava :fabric-26.2:compileClientJava` passed for both server and client source sets with JDK 26. The default Java 8 could not launch Gradle, and Gradle required its existing cache outside the workspace sandbox. No unrelated tests, formatters, or build tasks were run. Multiplayer packet exchange, server restart persistence, microphone capture, and visual remote deformation still require in-game verification.
+Historical validation for server shape synchronization used the four compilation tasks then required. `bash ./gradlew :fabric-1.21.1:compileJava :fabric-1.21.1:compileClientJava :fabric-26.2:compileJava :fabric-26.2:compileClientJava` passed for both server and client source sets with JDK 26. The default Java 8 could not launch Gradle, and Gradle required its existing cache outside the workspace sandbox. No unrelated tests, formatters, or build tasks were run. Multiplayer packet exchange, server restart persistence, microphone capture, and visual remote deformation still require in-game verification.
 
 ## FBX view entity
 
@@ -417,7 +441,7 @@ The AI variants reuse the same FBX model NBT, server sync, cache, and renderer:
 - `neutral_entity` wanders and only fights back after being damaged.
 - `hostile_entity` wanders, targets players, and attacks in melee.
 
-For the `fabric-26.2` target, the summonable FBX mob variants register floating, random strolling, player look-at, and random look-around goals explicitly. Their random strolling uses the four-argument `RandomStrollGoal` with no-action-time checks disabled so summoned display mobs do not stop wandering after being idle. Non-tameable FBX pathfinder mobs also use animal-like walk target scoring, preferring grass blocks and otherwise following light-level pathfinding cost, matching the movement behavior that made the tameable variant reliable. The hostile variant still uses normal Minecraft hostile targeting and melee damage rules, including peaceful mode preventing attacks.
+For the `fabric-26.3` target, the summonable FBX mob variants register floating, random strolling, player look-at, and random look-around goals explicitly. Their random strolling uses the four-argument `RandomStrollGoal` with no-action-time checks disabled so summoned display mobs do not stop wandering after being idle. Non-tameable FBX pathfinder mobs also use animal-like walk target scoring, preferring grass blocks and otherwise following light-level pathfinding cost, matching the movement behavior that made the tameable variant reliable. The hostile variant still uses normal Minecraft hostile targeting and melee damage rules, including peaceful mode preventing attacks.
 
 Summon example:
 
@@ -473,13 +497,13 @@ Rendering reuses the existing FBX loading pipeline: `UniversalParser`, `ModelNor
 
 ## FBX skeleton and live player poses
 
-Both Fabric 1.21.1 and 26.2 use the same pose rules through their version-specific `CustomModelPose`, `SkinnedModel`, `ModelNormalizer`, and rendering adapters. Both target modules are present and enabled in `settings.gradle`.
+Both Fabric 1.21.1 and 26.3 use the same pose rules through their version-specific `CustomModelPose`, `SkinnedModel`, `ModelNormalizer`, and rendering adapters. Both target modules are present and enabled in `settings.gradle`.
 
 - The Assimp importer retains every scene hierarchy node, including unweighted joints and armature/helper roots. Skin influences use Assimp joint-node identities when available, so duplicate joint names do not collapse their weights. Mesh node transforms are baked into positions and normals in the same model space as the skeleton. The binary fallback retains model parents, joint bind matrices, rotation/scaling pivots, and all meshes; it uses only imported skin weights and leaves unweighted geometry unweighted. Both import paths retain all positive weight influences rather than limiting vertices to four bones. Material recovery transfers matching position/UV appearances onto the Assimp geometry instead of replacing its skeleton or weights.
 - Import orientation uses the FBX file's current `UpAxis` and `UpAxisSign`, exposed through [Assimp scene metadata](https://github.com/assimp/assimp/blob/master/code/AssetLib/FBX/FBXConverter.cpp). `com.aksulightning.fbxplayermodels.model.FbxCoordinateSpace` supplies one scene-world conversion to model-space +Y. Y-up files retain their scene orientation; Z-up/X-up files receive the corresponding signed rotation. A model-space wrapper root applies that conversion to the skeleton, while the same conversion precedes mesh node transforms. Imported node-local binds and animation keys retain their source axes, and normalization subsequently transforms only the wrapper root. This corrects the reported 90-degree tilt caused by combining composed scene transforms with the previous unconditional `(x, z, -y)` Blender conversion. The Assimp static/skinned paths and binary fallback share the corrected orientation rule, preserving matching geometry for material recovery.
 - The six logical parts are Head, Chest, Right Arm, Left Arm, Right Leg, and Left Leg. Resolution accepts arbitrary explicitly bound joint names before automatic matching, fills unspecified parts automatically, and keeps an explicitly missing joint unresolved. Automatic matching skips Assimp pivot helper names and prefers a head over a neck. Regenerating procedural clips after binding edits replaces earlier generated clips while retaining authored clips and explicit clip mappings.
 - Model normalization copies geometry, applies the height/ground transform to skeleton roots once, retains child-local bind matrices, and recomputes inverse global binds. Degenerate/empty bounds are left unchanged. The normalized model retains its bindings and animation-enable setting; authored absolute root animation keys receive the same normalization once when sampled.
-- World rendering aligns the complete model with interpolated player body yaw, including the optional first-person self model. The 26.2 submission adapter also honors final render-state body/head overrides used by the inventory preview.
+- World rendering aligns the complete model with interpolated player body yaw, including the optional first-person self model. The 26.3 submission adapter also honors final render-state body/head overrides used by the inventory preview.
 - View yaw and body yaw use angle-aware interpolation. Their wrapped difference is clamped to ±85 degrees; interpolated view pitch is clamped to ±90 degrees. Head look is `R = Ry(-relativeYaw) * Rx(pitch)`, with no generated head roll. With translation removed from the head's global bind matrix `B`, the head's posed transform is postmultiplied by `inverse(B) * R * B`. Its authored origin/basis/scale and inherited posture remain in the transform, and children inherit the result. Look applies during Idle, Walk, Sneak, and Sit, including authored clips or absent clips, and is suppressed during Sleep.
 - First- and third-person player rendering call the same live limb-pose calculation. Walking uses player walk progress and interpolated amplitude, with opposite arm/leg phases and no tick-age substitute for zero amplitude. Sitting bends and spreads the legs and lowers the arms; held items modify the corresponding physical arm, and attack/block movement also applies while seated. Live pitch, yaw, and roll use model-space X, Y, and Z. Each limb delta is `T(currentJoint) * Ry(yaw) * Rx(pitch) * Rz(roll) * T(-currentJoint)`; recursive parent-first evaluation passes the posed joint and delta to descendants. Player poses replace generated limb swing tracks even when the live rotation is zero. Generated walking tracks remain available for display/mob rendering without live player poses.
 - Generated sneaking torso posture is additive in the chest's local bind space. Its authored pivot remains valid by default. Geometry supplies a substitute attachment only when the joint lies outside the entire mesh bounds by more than twice the mesh diagonal; the substitute is the base center of directly chest-weighted geometry, expressed in the chest bind space. This changes the posture pivot without rewriting bind matrices or weights.
@@ -489,30 +513,46 @@ Validation for these changes is limited to source inspection, review of the supp
 
 The complete changes from the FBX bone/pose implementation and subsequent orientation correction are exported in -path here-. The patch includes shared binding/coordinate-space code, both targets' importers, normalization, skinning, procedural/live poses, animation-setting integration, first-/third-person rendering adapters, 26.2 render-state data, and this documentation. Its baseline is -number here-, before the bone/pose work began. Apply it from the project root; module paths and version-specific APIs may need adapting when porting to a lite codebase with a different layout.
 
-## Minecraft 26.2 port
+## Minecraft 26.3 port (2026-11-06)
 
-The 26.2 module carries its own Minecraft-sensitive source and resources. It includes the player and entity renderers, rig binding, screens and file picker, local configuration, commands, networking payloads, tracked entity data, value input/output persistence, server upload permissions and size checks, safe filename validation, model synchronization, client caches, lifecycle hooks, Mod Menu integration, all five FBX entities, and custom tame items.
+`fabric-26.3` is the current modern full-mod target, initially ported from the now-retired 26.2 source. It is independent of the removed module. Its own main/client source sets, resources, entrypoints, and mixins retain model import and previews, rig binding and animations, Default shape keys, Voice Shape, first-person rendering and camera offsets, all five FBX entities, saved configuration, and integrated single-player/Open to LAN sharing. Version-independent models, appearance settings, audio processing, and session policy continue to come from `common`.
 
-Important 26.2 API changes handled in this module include:
+Dependency versions were read from [Fabric's Loader metadata](https://meta.fabricmc.net/v2/versions/loader/26.3), [Loom metadata](https://maven.fabricmc.net/net/fabricmc/fabric-loom/maven-metadata.xml), [Fabric API metadata](https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/maven-metadata.xml), and [Mod Menu's 26.3 releases](https://api.modrinth.com/v2/project/modmenu/version?game_versions=%5B%2226.3%22%5D). [Mojang's 26.3 runtime metadata](https://piston-meta.mojang.com/v1/packages/80608ff6753705b6a82e2cb86a5937d4d233abd4/26.3.json) specifies Java 25 and LWJGL 3.4.3; the bundled Assimp/NFD dependencies use that LWJGL version. Gradle was updated to 9.6.0, following [Fabric's 26.3 porting notes](https://fabricmc.net/2026/09/15/263.html). Metadata requires Minecraft `~26.3`, Fabric Loader `>=0.20.1`, Java `>=25`, and Fabric API. Mod Menu 21.0.0 remains optional at runtime.
 
-- Screens and toasts are now reached through `Minecraft.gui`.
-- The first-person hand renderer hook targets `submitHandsWithItems` with its complete 26.2 descriptor.
-- The living-entity name-tag submission no longer receives the removed distance argument.
-- Packed light lookup moved to `LightCoordsUtil`.
-- Toast submission uses the 26.2 `SystemToast` helpers and GUI-owned `ToastManager`.
-- Main-menu and player-render mixins use explicit 26.2 method descriptors without local-variable capture assumptions.
+The current renderer retains GUI-owned screens/toasts, `LightCoordsUtil` packed lighting, deferred player/entity submissions, and full-session moderation-notice deduplication. Inventory previews can apply body/head rotations after extraction, so animated player vertices are generated at submission from the final pose. Geometry uses `SubmitNodeCollector.submitCustomGeometry`, `RenderTypes.entityCutout`, `PoseStack`, and `VertexConsumer`; textures use `DynamicTexture` and Minecraft's texture manager. There are no direct OpenGL or GLFW rendering calls. The rendering backends still require in-game verification; Vulkan compatibility has not been functionally tested.
 
-The title-screen moderation notice is guarded for the full client session rather than per `TitleScreen` instance. Its toast uses `SystemToast.addOrUpdate`, preventing recreated or reinitialized title screens from queuing duplicate notices during first startup.
+The target handles these game API differences:
 
-Minecraft 26.2 applies inventory mouse-follow rotations to `LivingEntityRenderState` after entity extraction. Animated FBX player vertices are therefore generated during render submission from the final `bodyRot`, `yRot`, and `xRot` values. This keeps both horizontal body/head yaw and vertical head pitch aligned with the inventory mouse pose without mutating the live player entity or depending on captured method locals.
+- `FirstPersonHandsAndItemsRenderer` replaces `ItemInHandRenderer`. Its required mixin targets the complete `submitHandsWithItems(float, PoseStack, SubmitNodeCollector, PlayerRenderState, FirstPersonHandsAndItemsRenderState)` descriptor. Hand suppression checks that the render state has a player and that the local player's custom first-person model is available.
+- Quaternion rotations use `PoseStack.rotateDegrees(Axis, float)` in the player, first-person, and FBX entity renderers.
+- Player action poses use `getSwingAnimation`, `isSwinging`, and `getCurrentSwing().hand()`, including a main-hand fallback when no current swing exists.
+- SDL changes the left mouse button value from 0 to 1. The config preview, rig editor, shape editor, voice editor, and disclaimer checkbox use `InputConstants.MOUSE_BUTTON_LEFT`. The searchable target picker uses vanilla `EditBox` focus/input handling.
 
-The 26.2 client rendering path was audited for backend-specific calls. It contains no direct `GL11`, `GL20`, `GL30`, `GlStateManager`, manual shader binding, texture-state mutation, or framebuffer access. FBX geometry is submitted through `SubmitNodeCollector.submitCustomGeometry`, `RenderTypes.entityCutout`, `PoseStack`, and `VertexConsumer`; textures use Minecraft's `DynamicTexture` and texture manager. These abstractions leave reversed depth and backend state to Minecraft/Blaze3D. Assimp remains a native FBX parser and does not issue rendering commands.
+Camera, title-screen, living-entity, and first-person injection targets were inspected against the actual 26.3 client classes. Geometry and textures continue through Minecraft's submission and texture APIs, without direct OpenGL or GLFW calls. The final render-state pose overrides used by inventory previews and the existing session policy are retained.
 
-The default OpenGL backend is the minimum supported runtime target. The experimental Vulkan backend was not launched or functionally tested during this port, so Vulkan compatibility is not claimed. No known raw-OpenGL architectural limitation remains in the 26.2 Minecraft rendering path, but correctness under Vulkan remains an explicit runtime-verification limitation.
+`settings.gradle` recognizes explicit 26.3 task paths. Manual build, GitHub release, and CurseForge release selectors include `fabric-26.3`; centralized release metadata also includes it in `all`, with Java 25, `:fabric-26.3:jar`, and a distinct `fbx-player-models-fabric-26.3` artifact. The existing release-selection test expectation includes the new target. No workflows or publication actions were run.
 
-The manual release workflow packages 26.2 with Java 25 as its own matrix target and uploads a distinct `fbx-player-models-fabric-26.2` artifact for review. The stable Mod Menu 20.0.1 artifact is resolved from Modrinth Maven.
+Initial port validation, before 26.2 retirement: the then-prescribed four Fabric 1.21.1/26.2 compilation tasks plus the user-authorized `:fabric-26.3:compileJava :fabric-26.3:compileClientJava` passed under JDK 26 with release levels 21/25. An initial compile identified the removed hand renderer, swing members, and quaternion `mulPose` overloads; the target now uses their 26.3 APIs. The inherited deprecated API notice in `FBXPlayerModelsClient` remains. No other tests, formatters, packaging tasks, or game launches were run during that initial validation. In-game previews/input, first-person visibility, LAN transfers, audio deformation, and OpenGL/Vulkan rendering still need gameplay verification; no production jar was built during this port.
 
-The 26.2 development launch uses DevAuth `1.2.2`; unlike 1.2.1, it does not depend on the Apache HttpClient classes removed from the game runtime. DevAuth is `runtimeOnly` and is not bundled into the production mod jar.
+Follow-up test validation (2026-11-06): the user explicitly approved running tests. All six Fabric compilation tasks passed again, with their outputs up to date. `JAVA_HOME=/usr/lib/jvm/temurin-26-jdk-amd64 bash ./gradlew :fabric-26.3:test :common:test` passed: `LocalModelFeaturesTest` ran 8 tests and `LanAddressPolicyTest` ran 8 tests, with no failures, errors, or skips. The 26.3 module's own test task reported `NO-SOURCE`; it has no separate unit tests. `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s .github/scripts/tests -p 'test_release_*.py' -v` passed all 20 release metadata/publication tests, including selection of 26.3 through `all`. Publication calls in those tests are mocked. No game launch, production packaging, or actual publication was performed.
+
+## Minecraft 26.3 command-tree join crash (2026-11-06)
+
+Minecraft 26.3's `Commands.COMMAND_NODE_INSPECTOR` evaluates each command requirement with `Commands.createCompilationContext(PermissionSet.NO_PERMISSIONS)` when creating the joining player's command packet. This source deliberately has no server or world. The port's `hasAdministratorRights` predicate dereferenced `source.getServer()`, throwing a null-pointer exception during player placement even in an integrated world.
+
+The 26.3 upload-permission command now uses the native `Commands.hasPermission(new PermissionCheck.Require(Permissions.COMMANDS_GAMEMASTER))` predicate, which reads permissions without accessing a server. Command registration skips the dedicated-server environment, and command execution separately requires a non-null integrated server before accessing the model store. This preserves operator-level command access and the single-player/Open to LAN scope while allowing Minecraft to inspect the command tree safely. The package-private `registerCommands` method lets the tests exercise the actual command registration independently of networking initialization.
+
+`fabric-26.3/src/test/java/me/onethecrazy/server/ServerModelNetworkingTest.java` adds two JUnit 4 regression tests. The first bootstraps Minecraft headlessly, checks unprivileged and administrator compilation sources, invokes the game's actual command-node inspector, and constructs a `ClientboundCommandsPacket` from the registered tree. The second verifies that the upload-permission command is absent in the dedicated environment. JUnit is a test-only dependency; the manual release build now runs `:fabric-26.3:test` alongside packaging.
+
+Historical validation, before 26.2 retirement: all six previously approved Fabric compilation tasks and `:fabric-26.3:test` passed together under JDK 26. Both new regression tests passed with no failures, errors, or skips. The earlier `NO-SOURCE` result above predates these tests. No in-game world join, production packaging, or publication was performed for this fix.
+
+## Retired Minecraft 26.2 target (2026-11-06)
+
+Removed `fabric-26.2/src` and its module build file, the settings inclusion, all `fabric_262_*` properties, and the unused `loom_262_version`. Active build/release selectors, the archived Modrinth selector, centralized release metadata, and the release-selection test now omit this target. Full and client-only Fabric remain supported on 1.21.1 and 26.3; Forge 1.21.1 and Beta remain separate client-only targets, for six release variants total. `README.md`, current support/API/build documentation, the module layout, and `AGENTS.md` now describe the remaining targets. Earlier validation records retain their original version names as history.
+
+The removed module's ignored `run/` and `build/` directories were moved to `.temp/retired-fabric-26.2-obbxhkv9/` to preserve local development data and artifacts. This ignored backup is not a Gradle module. No runtime data outside the retired module was moved or deleted.
+
+Validation after removal: all eight compilation tasks in the current prescribed command passed under JDK 26; both client-only `compileJava` tasks reported `NO-SOURCE` as expected. `:fabric-26.3:test`, `:fabric-1.21.1-client:test`, and `:fabric-26.3-client:test` also succeeded. The full 26.3 suite retained its two passing command-tree tests, and the client test tasks retained the 16 passing shared model/session-policy tests through `common:test`; these Java test results were up to date. All 20 release-helper tests passed again, including selection of exactly the six remaining release variants. A source/configuration search found no remaining 26.2 build references outside this historical documentation and the ignored backup. No game launch, production packaging, or publication was performed.
 
 ## Adding another Fabric Minecraft version
 
@@ -521,7 +561,7 @@ The 26.2 development launch uses DevAuth `1.2.2`; unlike 1.2.1, it does not depe
 3. Add `include("fabric-<minecraft-version>")` to `settings.gradle`.
 4. Create `fabric-<minecraft-version>/build.gradle` from the closest compatible target.
 5. Copy only the necessary Fabric glue, resources, entrypoints, and mixins into the new module.
-6. Add Yarn only for an obfuscated target; Minecraft 26.2 uses the unobfuscated names supplied by the game.
+6. Add Yarn only for an obfuscated target; Minecraft 26.3 uses the unobfuscated names supplied by the game.
 7. Adapt dependencies, `fabric.mod.json`, mixin targets, injection descriptors, GUI, networking, persistence, entity, and rendering APIs for that Minecraft version.
 8. Audit the new rendering path for backend-specific graphics calls.
 9. Keep shared logic in `common`; isolate mapping-sensitive differences inside the Fabric target module.

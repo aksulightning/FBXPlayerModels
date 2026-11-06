@@ -1,0 +1,48 @@
+{
+	"schemaVersion": 1,
+	"id": "fbx-player-models",
+	"version": "${version}",
+	"name": "FBX Player Models",
+	"description": "FBX player and entity models for single-player and Open to LAN. Dedicated/public servers are unsupported.",
+	"authors": [
+		"1TheCrazy",
+		"Aksu Lightning"
+	],
+	"contact": {
+		"sources": "https://github.com/aksulightning/FBXPlayerModels",
+		"homepage": "https://github.com/aksulightning/FBXPlayerModels"
+	},
+	"license": "MIT",
+	"icon": "assets/fbx-player-models/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"me.onethecrazy.FBXPlayerModelsMod"
+		],
+		"client": [
+			"me.onethecrazy.FBXPlayerModelsClient"
+		],
+		"voicechat": [
+			"com.aksulightning.fbxplayermodels.voice.SimpleVoiceChatPlugin"
+		],
+		"modmenu": [
+			"me.onethecrazy.ModMenuIntegration"
+		]
+	},
+	"mixins": [
+		"fbx-player-models.mixins.json",
+		{
+			"config": "fbx-player-models.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"suggests": {
+		"voicechat": "*"
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
