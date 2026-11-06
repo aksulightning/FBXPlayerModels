@@ -116,6 +116,14 @@ bash ./gradlew :forge-1.12.2-client:reobfJar
 
 Validation: the prescribed eight Fabric compile tasks passed on JDK 26. The user separately authorized `:forge-1.12.2:compileJava`; after correcting the data-directory field to MCP stable 39's `gameDir`, this passed with a Java 8 compiler. The final compile also passed after the controls and renderer changes. No additional test suite, formatter, packaging task, Minecraft client, or release workflow was run. Runtime rendering, desktop file picker behavior, and production SRG packaging remain unverified.
 
+## Forge 1.12.2 smooth mesh shading (2026-11-06)
+
+Minecraft 1.12.2's `RenderHelper.enableStandardItemLighting()` selects `GL_FLAT`. `LegacyModelRenderer` previously inherited that mode, so the fixed-function lighting used one vertex's lighting across each triangle even when the FBX supplied smooth per-vertex normals. This produced visible triangular facets on rounded meshes such as the reported mane, tail, and body.
+
+`forge-1.12.2-client` now explicitly selects `GL_SMOOTH` inside `LegacyModelRenderer`'s existing saved OpenGL attribute scope. Lighting interpolates between the imported/skinned vertex normals for third-person rendering, first-person body rendering, and the settings preview. The existing `glPopAttrib()` restores the caller's shade mode. The scoped raw GL call leaves `GlStateManager`'s cached shade mode unchanged, so it still matches the restored driver state afterward. Authored normals and hard edges remain part of the imported geometry.
+
+Validation: the prescribed eight Fabric compilation tasks passed under JDK 26. The previously authorized Forge validation also passed with `JAVA_HOME=/usr/lib/jvm/temurin-26-jdk-amd64 bash ./gradlew :forge-1.12.2-client:compileJava -Dorg.gradle.java.installations.paths=/usr/lib/jvm/zulu-8-amd64,/usr/lib/jvm/temurin-17-jdk-amd64`, compiling the changed renderer with Java 8. The cause and state restoration were checked against the locally generated Minecraft `RenderHelper` and `GlStateManager` sources. This module has no unit-test sources; no additional tests, packaging tasks, workflows, or game launch were run for this fix. In-game visual verification remains outstanding.
+
 ## Fabric 1.21.1 client-only features and comparison
 
 `fabric-1.21.1-client` originated from the user-specified `../FBXPlayerModels-lite/fabric-1.21.1` port and now includes the full version's requested local Default shape keys, Voice Shape, and UpAxis-aware FBX pipeline. The source repository was read only. The module retains client-only metadata/entrypoints/mixins and registers no main/server initializer, FBX model-sharing payloads/receivers, or entity types.
