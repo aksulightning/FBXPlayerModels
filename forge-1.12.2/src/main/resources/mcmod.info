@@ -1,0 +1,13 @@
+[
+  {
+    "modid": "fbxplayermodels",
+    "name": "FBX Player Models (Client Only)",
+    "description": "Local custom FBX player models for Minecraft 1.12.2 Forge.",
+    "version": "${version}",
+    "mcversion": "1.12.2",
+    "authorList": ["AksuLightning", "1TheCrazy"],
+    "logoFile": "assets/fbxplayermodels/icon.png",
+    "clientSideOnly": true,
+    "serverSideOnly": false
+  }
+]

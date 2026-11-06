@@ -13,6 +13,7 @@ This release is experimental and made for playing with friends. Public multiplay
 | 26.3 | Fabric (full) | Shared models in an **Open to LAN** world when host and guests run matching mod versions |
 | 26.3 | Fabric (client only) | Your model is displayed only on your own client |
 | 1.21.1 | Forge | Your model is displayed only on your own client |
+| 1.12.2 | Forge (client only) | Your model is displayed only on your own client |
 | Beta 1.7.3 | Babric + StationAPI | Your model is displayed only on your own client |
 
 Fabric 1.21.1 and 26.3 have separate `fabric-1.21.1-client` and `fabric-26.3-client` variants, alongside the client-only Forge and Beta variants. They require no server-side installation, send no model data, and do not make your model visible to friends. Their local configuration paths and saved selections are retained.
@@ -42,6 +43,8 @@ Forge includes Default shape-key sliders/reset and previews, Voice Shape bone or
 The Forge mod ID and saved model selections are retained. Simple Voice Chat is optional; if installed, its API must be version 2.6.0 or newer. Use the production `fbx-player-models-forge-v2.0.0+1.21.1+mc1.21.1.jar`, built through `:forge-1.21.1:jarJar`.
 
 ## Use a model
+
+For Forge 1.12.2, use the separate `forge-1.12.2` target with Java 8 and Forge 14.23.5.2847 or newer. Open **FBX Models** from the title screen, press **K**, or use `/skin`. This legacy port includes local FBX selection, preview, procedural rig animation, bone binding, scale, first-person body, and camera settings. It does not include the modern shape-key, Voice Shape, GLB/OBJ, or imported animation-clip features. Build its production jar with `bash ./gradlew :forge-1.12.2:reobfJar`; build/toolchain details are in [Code_Guide.md](Code_Guide.md). Its settings and model cache use `.fbxplayermodels/forge-1.12.2/` and it requires no server installation.
 
 1. Install the correct variant and its loader dependencies. Beta also requires StationAPI.
 2. Start a single-player world or join a supported LAN game.

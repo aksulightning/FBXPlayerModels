@@ -1,0 +1,63 @@
+plugins {
+	id 'java'
+	id 'com.gtnewhorizons.retrofuturagradle' version "${forge_1122_rfg_version}"
+}
+
+version = project.forge_1122_mod_version
+group = 'com.aksulightning.fbxplayermodels'
+
+base {
+	archivesName = "${rootProject.archives_base_name}-forge-1.12.2"
+}
+
+java {
+	toolchain.languageVersion = JavaLanguageVersion.of(8)
+	withSourcesJar()
+}
+
+// Keep Java 17/21 shared classes and LWJGL 3 out of the legacy client.
+minecraft {
+	mcVersion.set(project.forge_1122_minecraft_version)
+	mcpMappingChannel.set('stable')
+	mcpMappingVersion.set('39')
+}
+
+// RFG selects the legacy Forge SDK from its Minecraft version table.
+if (minecraft.forgeVersion.get() != "${project.forge_1122_minecraft_version}-${project.forge_1122_loader_version}") {
+	throw new GradleException('Update the Forge 1.12.2 SDK version property to match RetroFuturaGradle.')
+}
+
+configurations {
+	bundledMath
+	implementation.extendsFrom(bundledMath)
+}
+
+dependencies {
+	bundledMath('org.joml:joml:1.10.8') { transitive = false }
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+	sourceCompatibility = '1.8'
+	targetCompatibility = '1.8'
+}
+
+processResources {
+	inputs.property 'version', project.version
+	filesMatching('mcmod.info') { expand version: project.version }
+	from(rootProject.file('common/src/main/resources/assets/fbx-player-models/icon.png')) {
+		into 'assets/fbxplayermodels'
+	}
+}
+
+jar {
+	archiveFileName = "${rootProject.archives_base_name}-client-forge-v${project.version}+mc${project.forge_1122_minecraft_version}-dev.jar"
+	from({ configurations.bundledMath.collect { zipTree(it) } }) {
+		exclude 'META-INF/**', 'module-info.class'
+	}
+	from(rootProject.file('LICENSE'))
+}
+
+tasks.named('reobfJar') {
+	archiveFileName = "${rootProject.archives_base_name}-client-forge-v${project.version}+mc${project.forge_1122_minecraft_version}.jar"
+}

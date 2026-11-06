@@ -9,6 +9,14 @@ pluginManagement {
 			url = 'https://maven.glass-launcher.net/babric'
 		}
 		maven { url = 'https://jitpack.io/' }
+		maven {
+			name = 'RetroFuturaGradle'
+			url = 'https://nexus.gtnewhorizons.com/repository/public/'
+			content {
+				includeGroup 'com.gtnewhorizons'
+				includeGroup 'com.gtnewhorizons.retrofuturagradle'
+			}
+		}
 		mavenCentral()
 		gradlePluginPortal()
 	}
@@ -49,6 +57,10 @@ if (includeAllLoaderProjects || requestedLoaderProjects.contains("fabric-b1.7.3"
 
 if (includeAllLoaderProjects || requestedLoaderProjects.contains("forge-1.21.1")) {
 	include("forge-1.21.1")
+}
+
+if (includeAllLoaderProjects || requestedLoaderProjects.contains("forge-1.12.2")) {
+	include("forge-1.12.2")
 }
 
 if (includeAllLoaderProjects || requestedLoaderProjects.contains("fabric-1.21.1-client")) {

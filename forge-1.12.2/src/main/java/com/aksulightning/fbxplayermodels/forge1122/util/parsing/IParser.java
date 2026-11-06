@@ -1,0 +1,12 @@
+package com.aksulightning.fbxplayermodels.forge1122.util.parsing;
+
+import com.aksulightning.fbxplayermodels.forge1122.util.objects.Vertex;
+
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Optional;
+
+public interface IParser {
+    Optional<List<Vertex>> parse(Path path);
+}
+

@@ -2,17 +2,17 @@
 
 ## Release variants and loader support
 
-This release maintains the full mod on Fabric 1.21.1 and 26.3 and adds client-only Fabric 1.21.1, Fabric 26.3, Forge 1.21.1, and Babric/StationAPI Beta 1.7.3 variants. Each target produces a separate jar; there is no universal jar. NeoForge, Quilt, and Architectury are not used.
+This release maintains the full mod on Fabric 1.21.1 and 26.3 and adds client-only Fabric 1.21.1, Fabric 26.3, Forge 1.21.1, Forge 1.12.2, and Babric/StationAPI Beta 1.7.3 variants. Each target produces a separate jar; there is no universal jar. NeoForge, Quilt, and Architectury are not used.
 
 The full Fabric variants support single-player and Open to LAN model sharing. Fabric 1.21.1 Client Only, Fabric 26.3 Client Only, Forge, and Beta retain local-player rendering only and register no model-sharing packets, server stores, or FBX entities. The client-only ports retain their configuration formats, paths, and mod identifiers; their display names describe the client-only variant.
 
-`common` serves the full modern Fabric mod, both client-only Fabric variants, and Forge, including their shared Java 21 shape/voice/model/config code. Forge compiles the common sources directly into its own source set to avoid split Java packages. `client-common` retains the separate Java 17 Lite model/config/platform code for Beta, which includes its compiled output. No jar includes both common variants, avoiding duplicate model/config classes.
+`common` serves the full modern Fabric mod, both client-only Fabric variants, and Forge 1.21.1, including their shared Java 21 shape/voice/model/config code. Forge 1.21.1 compiles the common sources directly into its own source set to avoid split Java packages. `client-common` retains the separate Java 17 Lite model/config/platform code for Beta, which includes its compiled output. No jar includes both common variants, avoiding duplicate model/config classes. Forge 1.12.2 maintains its Java 8 model/config implementation separately.
 
-`session-policy/src/main/java` is a small shared source directory, compiled into `common`, `client-common`, and Forge. It has no Minecraft, loader, or rendering dependencies.
+`session-policy/src/main/java` is a small shared source directory, compiled into `common`, `client-common`, and Forge 1.21.1. It has no Minecraft, loader, or rendering dependencies. Forge 1.12.2 carries the same address policy with Java 8 syntax in its own package.
 
 ## Supported targets
 
-The repository maintains two full-mod Fabric targets, plus the four client-only ports described below. Each loader module has its own version-sensitive source, resources, metadata, and production jar. Full Fabric, both client-only Fabric variants, and Forge use `common`; Beta uses `client-common`. Neither shared module is a standalone Minecraft distribution.
+The repository maintains two full-mod Fabric targets, plus five client-only ports. Each loader module has its own version-sensitive source, resources, metadata, and production jar. Full Fabric, both client-only Fabric variants, and Forge 1.21.1 use `common`; Beta uses `client-common`. Forge 1.12.2 has an independent Java 8 implementation. Neither shared module is a standalone Minecraft distribution.
 
 ### Target and toolchain versions
 
@@ -62,6 +62,33 @@ The imported Forge port uses Forge `52.1.16`, ForgeGradle `7.0.40`, JarJar `0.2.
 Beta uses BINY `b1.7.3+e1fe071`, Fabric Loader `0.19.3`, StationAPI `2.0.0-alpha.6.4`, Loom `1.16.3`, and Babric Loom Extension `1.17.2`. Its Gradle daemon runs on Java 21 or newer, while Beta and `client-common` use a Java 17 compiler and bytecode. The manual workflow explicitly installs that compiler. The imported Foojay resolver supports Gradle toolchain discovery/downloads.
 
 `settings.gradle` recognizes both `fabric-*` and `forge-*` explicit task paths and configures only requested loader targets. Prefer explicit target tasks so unrelated loader plugins and toolchains do not need to resolve together.
+
+## Forge 1.12.2 client-only port (2026-11-06)
+
+`forge-1.12.2` is a separate Forge-only Minecraft 1.12.2 target. All of its Java code lives under `com.aksulightning.fbxplayermodels.forge1122`. The legacy target does not depend on `common` or `client-common`: their Java 21/17 bytecode cannot run on a normal Java 8 Forge installation. The existing modern targets remain available.
+
+The target uses RetroFuturaGradle `2.0.3`, MCP stable `39`, a Java 8 compiler/runtime, and Minecraft's LWJGL 2. RetroFuturaGradle's 1.12.2 SDK is pinned upstream to Forge `14.23.5.2847`; the mod accepts that version and newer 1.12.2 Forge installations. `forge_1122_loader_version` records that SDK version. The root Gradle 9.6 wrapper runs on a modern JDK; RFG additionally uses installed Java 8 and Java 17 toolchains for Minecraft preparation. Plugin resolution uses the upstream GTNH Maven repository. References: [Forge development environment](https://github.com/CleanroomMC/ForgeDevEnv) and [RFG toolchain source](https://github.com/GTNewHorizons/RetroFuturaGradle/blob/master/plugin/src/main/java/com/gtnewhorizons/retrofuturagradle/IMinecraftyExtension.java).
+
+The `@Mod` entrypoint and `mcmod.info` both declare client-only behavior. The mod ID is `fbxplayermodels`, accepted Minecraft range is `[1.12.2]`, and the remote-version predicate accepts an unmodified peer. There are no network channels, model transfers, server initializers, entities, or server commands. The `/skin` command uses Forge's client command handler. World rendering is limited to the local player in single-player and resolved local-network sessions, following the existing address policy; public-server connections show the existing inactive notice once per connection. Preview and settings work without a world.
+
+Open the settings using **K** (rebindable in Controls), the title-screen **FBX Models** button, the Forge Mods **Config** button, or `/skin`. The settings contain model selection/reset, a path input, a desktop file picker, an enable toggle, model scale, an animation toggle, six editable logical bone bindings, four procedural state mappings, auto binding, a rotatable model preview, first-person body rendering, and camera XYZ offsets/reset. Commands also support `/skin import <path>`, `/skin reset`, `/skin toggle`, and `/skin reload`. Paths containing spaces may be quoted. The path input and import command remain usable when a desktop picker is unavailable.
+
+`ClientModels` owns one local model and saves selection/settings under `.minecraft/.fbxplayermodels/forge-1.12.2/config.json`; cached files are SHA-256 addressed under its `skins/` directory. The cache also preserves referenced external textures in `<hash>.assets/`, with normalized paths constrained to that directory. Embedded and external images use Minecraft `DynamicTexture` objects. Selection failures report a visible error; reset and resource reload release owned GL textures. Settings use a temporary file and atomic replacement where supported. This version-specific settings directory avoids overwriting the modern variants' config formats.
+
+The Java 8 CPU importer/skinning implementation is adapted from the existing legacy FBX pipeline, including cluster skinning, armature fallback weights, multiple meshes/materials, head/limb poses, and procedural Walk/Sneak/Sit/Sleep animations. Static ASCII FBX meshes also work. The world renderer uses Forge events, the 1.12.2 buffer builder, and GL state restoration; it retains vanilla held-item drawing. The optional first-person body hides head-weighted faces and requires a rigged model. Vanilla first-person hands/items retain their normal rendering.
+
+This target currently has the legacy port's feature scope: FBX import and procedural rig animation. It does not include the modern Assimp/GLB/OBJ pipeline, imported animation clips, Default shape keys, or Voice Shape. No LWJGL 3, Assimp, NFD, Fabric Loader, Fabric API, Mixin bootstrap, or additional runtime mod is bundled. JOML `1.10.8` is included directly, excluding module descriptors and dependency metadata, with its upstream license at `META-INF/LICENSE-JOML.txt`, so no separate math-library installation is required.
+
+Use explicit project tasks so this SDK is not configured during Fabric-only builds:
+
+```bash
+bash ./gradlew :forge-1.12.2:compileJava
+bash ./gradlew :forge-1.12.2:reobfJar
+```
+
+`jar` is the development artifact with a `-dev.jar` suffix. Only `reobfJar` converts Minecraft references to production SRG names and produces `forge-1.12.2/build/libs/fbx-player-models-client-forge-v2.0.0+1.12.2+mc1.12.2.jar`. Packaging and gameplay are separate from compilation and are not run by the prescribed validation command. No release automation or publication is changed by this port.
+
+Validation: the prescribed eight Fabric compile tasks passed on JDK 26. The user separately authorized `:forge-1.12.2:compileJava`; after correcting the data-directory field to MCP stable 39's `gameDir`, this passed with a Java 8 compiler. The final compile also passed after the controls and renderer changes. No additional test suite, formatter, packaging task, Minecraft client, or release workflow was run. Runtime rendering, desktop file picker behavior, and production SRG packaging remain unverified.
 
 ## Fabric 1.21.1 client-only features and comparison
 
