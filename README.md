@@ -10,7 +10,6 @@ This release is experimental and made for playing with friends. Public multiplay
 | --- | --- | --- |
 | 1.21.1 | Fabric (full) | Shared models in an **Open to LAN** world when host and guests run matching mod versions |
 | 1.21.1 | Fabric (client only) | Your model is displayed only on your own client |
-| 26.2 | Fabric | Shared models in an **Open to LAN** world when host and guests run matching mod versions |
 | 26.3 | Fabric (full) | Shared models in an **Open to LAN** world when host and guests run matching mod versions |
 | 26.3 | Fabric (client only) | Your model is displayed only on your own client |
 | 1.21.1 | Forge | Your model is displayed only on your own client |

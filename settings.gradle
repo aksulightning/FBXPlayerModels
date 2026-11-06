@@ -35,10 +35,6 @@ if (includeAllLoaderProjects || requestedLoaderProjects.contains("fabric-1.21.1"
 	include("fabric-1.21.1")
 }
 
-if (includeAllLoaderProjects || requestedLoaderProjects.contains("fabric-26.2")) {
-	include("fabric-26.2")
-}
-
 if (includeAllLoaderProjects || requestedLoaderProjects.contains("fabric-26.3")) {
 	include("fabric-26.3")
 }

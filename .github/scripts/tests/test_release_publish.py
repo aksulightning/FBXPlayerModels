@@ -32,7 +32,7 @@ class DuplicatePublicationTest(unittest.TestCase):
 
     def test_conflicting_channel_loader_or_game_stops_publication(self):
         for changes in [{'version_type': 'release'}, {'loaders': ['fabric']},
-                        {'game_versions': ['26.2']}, {'status': 'draft'}]:
+                        {'game_versions': ['26.3']}, {'status': 'draft'}]:
             with self.assertRaises(RuntimeError):
                 already_published(self.row, [dict(self.version, **changes)], 'same-file', 'alpha')
 
@@ -47,7 +47,7 @@ class DuplicatePublicationTest(unittest.TestCase):
 
 class ReleaseSelectionTest(unittest.TestCase):
     def test_all_selects_each_supported_port(self):
-        self.assertEqual({'fabric-1.21.1', 'fabric-1.21.1-client', 'fabric-26.2', 'fabric-26.3', 'fabric-26.3-client', 'forge-1.21.1', 'fabric-b1.7.3'},
+        self.assertEqual({'fabric-1.21.1', 'fabric-1.21.1-client', 'fabric-26.3', 'fabric-26.3-client', 'forge-1.21.1', 'fabric-b1.7.3'},
                          set(selected_targets('all')))
 
     def test_single_target_stays_single(self):

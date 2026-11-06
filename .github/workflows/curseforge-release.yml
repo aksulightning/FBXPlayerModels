@@ -11,7 +11,6 @@ on:
           - all
           - fabric-1.21.1
           - fabric-1.21.1-client
-          - fabric-26.2
           - fabric-26.3
           - fabric-26.3-client
           - forge-1.21.1

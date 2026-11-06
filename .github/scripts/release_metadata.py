@@ -14,7 +14,6 @@ CLIENT_FABRIC_TARGETS = {CLIENT_FABRIC_TARGET, 'fabric-26.3-client'}
 TARGETS = {
     'fabric-1.21.1': ('1.21.1', 'fabric', '21', 'remapJar', 'fabric_1211_mod_version', 'nightly-1.21.1'),
     CLIENT_FABRIC_TARGET: ('1.21.1', 'fabric', '21', 'remapJar', 'fabric_1211_client_mod_version', 'nightly-fabric-client-1.21.1'),
-    'fabric-26.2': ('26.2', 'fabric', '25', 'jar', 'fabric_262_mod_version', 'nightly-26.2'),
     'fabric-26.3': ('26.3', 'fabric', '25', 'jar', 'fabric_263_mod_version', 'nightly-26.3'),
     'fabric-26.3-client': ('26.3', 'fabric', '25', 'jar', 'fabric_263_client_mod_version', 'nightly-fabric-client-26.3'),
     'forge-1.21.1': ('1.21.1', 'forge', '21', 'jarJar', 'forge_1211_mod_version', 'nightly-forge-1.21.1'),
